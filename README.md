@@ -7,11 +7,11 @@ Ce projet combine une bibliothèque de ressources financières approfondies avec
 L'objectif principal est de développer un agent autonome capable d'agréger des données économiques en temps réel, d'analyser le sentiment du marché et de générer des rapports de trading structurés avec des prédictions de prix.
 
 ### 🛠 Architecture & Tech Stack
-*   **Orchestration** : n8n (Workflows automatisés)
-*   **Langage** : TypeScript (Logique d'analyse)
-*   **Base de Données** : PostgreSQL (Stockage historique, Indicateurs & Prédictions)
-*   **Connectivité** : API REST (JSON)
-*   **Sorties** : Telegram/Slack (Alertes), Rapports structurés, Google Sheets (Visualisation).
+*   **Cerveau AI** : Modèle `x-ai/grok-code-fast-1` via **KiloCode CLI**.
+*   **Système** : Backend Node.js + Frontend (WebSockets).
+*   **Base de Données** : PostgreSQL (Stockage historique, Indicateurs & Prédictions).
+*   **Connectivité** : API REST (Données) & Pipelines de Fichiers (AI).
+*   **Sorties** : Dashboard Temps Réel, Telegram, Rapports structurés.
 
 ### 📡 Sources de Données & APIs
 L'agent se connecte aux sources suivantes pour une analyse macro-économique complète :
@@ -75,4 +75,4 @@ Une collection de ressources pour l'analyse fondamentale et la compréhension de
 - **Guide to Economic Indicators CPI.pdf** - Comprendre l'IPC et les indicateurs.
 
 ---
-*Projet en développement actif : Intégration n8n, Scripting TypeScript et mise en place de la base PostgreSQL.*
+*Projet en développement actif : Architecture Backend/Frontend avec Agents AI KiloCode (x-ai).*
