@@ -1,4 +1,4 @@
-# Financial Analyst & ES Futures Trading Agent
+# Financial Analyst & ES Futures Agent
 
 Ce projet combine une bibliothèque de ressources financières approfondies avec un agent d'analyse automatisé pour le trading des futures ES (S&P 500).
 
