@@ -26,9 +26,10 @@ Des modules TypeScript spécifiques (Clients API) sont responsables de la récup
 ### 2. Le Moteur d'Analyse (Core Logic)
 C'est le cœur de l'agent. Il prend les données brutes et les transforme en "Intelligence" exploitable par l'IA ou les algorithmes déterministes.
 
-*   **Normalisation** : Convertir toutes les données dans un format standard (ex: JSON unifié).
-*   **Comparateur (Surprise Index)** : Calcule la différence entre `Actual` et `Forecast` pour évaluer l'impact immédiat.
-*   **Calculateur de Tendance** : Algorithme pondéré qui détermine si le contexte est `BULLISH`, `BEARISH` ou `RANGE` basé sur la confluence des indicateurs (ex: Yields en baisse + Bon Earnings = Bullish).
+*   **Normalisation** : Convertir toutes les données dans un format standard.
+*   **ToonFormatter** : Convertit les données JSON volumineuses en format **TOON** (Token-Oriented Object Notation) pour réduire la consommation de tokens de 30-60% avant l'envoi à l'IA.
+*   **Comparateur (Surprise Index)** : Calcule la différence entre `Actual` et `Forecast`.
+*   **Calculateur de Tendance** : Algorithme pondéré pour le contexte `BULLISH`/`BEARISH`.
 
 ### 3. Les Agents AI (KiloCode Pipelines)
 Chaque agent (`BaseAgent`) est une classe TypeScript qui enveloppe des appels au CLI `kilocode`.
