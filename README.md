@@ -1,4 +1,3 @@
-# Financial Analyst & ES Futures Agent
 <div align="center">
   <img src="assets/logo.png" alt="NovaQuote Logo" width="250" style="border-radius: 15px; box-shadow: 0 0 20px rgba(0, 122, 204, 0.5);">
   
