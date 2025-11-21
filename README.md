@@ -1,38 +1,76 @@
-# Financial Analyst
+# Financial Analyst & ES Futures Trading Agent
 
-Une collection complète de ressources financières pour l'analyse fondamentale, les marchés financiers, les obligations et les indicateurs économiques.
+Ce projet combine une bibliothèque de ressources financières approfondies avec un agent d'analyse automatisé pour le trading des futures ES (S&P 500).
 
-## 📁 Structure du Projet
+## 🤖 Agent d'Analyse ES Futures (Automated Analyst)
 
-### 📚 LIVRE FINANCE
+L'objectif principal est de développer un agent autonome capable d'agréger des données économiques en temps réel, d'analyser le sentiment du marché et de générer des rapports de trading structurés avec des prédictions de prix.
 
-Ce projet contient une bibliothèque de ressources financières organisées par catégories :
+### 🛠 Architecture & Tech Stack
+*   **Orchestration** : n8n (Workflows automatisés)
+*   **Connectivité** : API REST (JSON)
+*   **Sorties** : Google Sheets (Base de données), Telegram/Slack (Alertes), Rapports structurés.
 
-#### 📈 STOCK MARKET CYCLE
-- **An Introduction to Financial Markets (2010).pdf** - Guide complet sur les marchés financiers et leur fonctionnement
+### 📡 Sources de Données & APIs
+L'agent se connecte aux sources suivantes pour une analyse macro-économique complète :
 
-#### 💰 FUNDAMENTAL ANALYSIS
-- **Mastering Fundamental Analysis.pdf** - Maîtrise de l'analyse fondamentale
-- **Mastering Fundamental Analysis2.pdf** - Guide avancé sur l'analyse fondamentale
+1.  **FRED API (Federal Reserve Economic Data)**
+    *   *Données* : PIB, Inflation, Emploi, Taux d'intérêt.
+    *   *Usage* : Tendance macro long terme.
+2.  **BLS API (Bureau of Labor Statistics)**
+    *   *Données* : CPI, NFP (Non-Farm Payrolls), Chômage.
+    *   *Usage* : Analyse des surprises macro (Réel vs Attendu).
+3.  **FinancialModelingPrep (FMP)**
+    *   *Données* : Courbe des taux (Yield Curve), Treasury Yields (1Y-30Y).
+    *   *Usage* : Sentiment obligataire.
+4.  **AlphaVantage**
+    *   *Données* : Calendrier des résultats (Earnings), Estimations EPS.
+    *   *Usage* : Impact micro-économique sur l'indice.
+5.  **Sources Complémentaires (Web Scraping/Analysis)**
+    *   TradingEconomics (Calendrier Économique)
+    *   ZoneBourse & ZeroHedge (Sentiment & News)
+    *   FinancialJuice (News en temps réel)
 
-#### 💎 BOND
-- **All About Bonds, Bond Mutual Funds, and Bond ETFs.pdf** - Guide complet sur les obligations et les fonds obligataires
+### 📊 Format du Rapport Journalier
+L'agent génère chaque matin un rapport structuré pour la session de trading :
 
-#### 📊 ECONOMIC
-- **Guide to Economic Indicators CPI.pdf** - Guide des indicateurs économiques incluant l'IPC
-
-## 🎯 Objectif
-
-Ce projet vise à fournir une base de connaissances complète pour :
-- L'analyse fondamentale des entreprises
-- La compréhension des cycles de marché
-- L'investissement obligataire
-- L'interprétation des indicateurs économiques
-
-## 📖 Utilisation
-
-Les ressources sont organisées par catégories pour faciliter la recherche et l'apprentissage. Chaque catégorie contient des livres et guides spécialisés dans leur domaine respectif.
+> **🎯 TODAY'S TREND**
+> [RANGE / BULLISH / BEARISH] + Justification courte
+>
+> **📊 CRITICAL EVENTS**
+> [Heure EST] [Événement] : Impact [FORT/MOYEN/FAIBLE] → Direction Probable [↑/↓]
+>
+> **⚡ MAIN CATALYSTS**
+> *   Point 1
+> *   Point 2
+>
+> **⚠️ RISKS**
+> *   Risque Principal
+>
+> **💡 KEY ES ZONES**
+> *   **Support** : [Niveau]
+> *   **Résistance** : [Niveau]
 
 ---
 
-*Projet maintenu pour l'éducation et le développement des compétences en analyse financière*
+## 📚 Base de Connaissances (LIVRE FINANCE)
+
+Une collection de ressources pour l'analyse fondamentale et la compréhension des marchés.
+
+### 📁 Structure des Ressources
+
+#### 📈 STOCK MARKET CYCLE
+- **An Introduction to Financial Markets (2010).pdf** - Guide complet sur les marchés financiers.
+
+#### 💰 FUNDAMENTAL ANALYSIS
+- **Mastering Fundamental Analysis.pdf** - Maîtrise de l'analyse fondamentale.
+- **Mastering Fundamental Analysis2.pdf** - Guide avancé.
+
+#### 💎 BOND
+- **All About Bonds, Bond Mutual Funds, and Bond ETFs.pdf** - Guide sur les obligations.
+
+#### 📊 ECONOMIC
+- **Guide to Economic Indicators CPI.pdf** - Comprendre l'IPC et les indicateurs.
+
+---
+*Projet en développement actif : Intégration n8n et construction de la base de données de prix anticipés en cours.*
