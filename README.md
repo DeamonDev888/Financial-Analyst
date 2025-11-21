@@ -1,4 +1,27 @@
 # Financial Analyst & ES Futures Agent
+<div align="center">
+  <img src="assets/logo.png" alt="NovaQuote Logo" width="250" style="border-radius: 15px; box-shadow: 0 0 20px rgba(0, 122, 204, 0.5);">
+  
+  # 🚀 Financial Analyst & ES Futures Agent
+  
+  **L'Intelligence Artificielle au service du Trading de Futures ES (S&P 500)**
+  
+  [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+  [![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+  [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+  [![KiloCode AI](https://img.shields.io/badge/AI-KiloCode%20%7C%20x--ai-FF6600?style=for-the-badge)](https://x.ai/)
+  [![License: ISC](https://img.shields.io/badge/License-ISC-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/ISC)
+
+  <p align="center">
+    <a href="#-architecture--tech-stack">Architecture</a> •
+    <a href="#-sources-de-données--apis">Données</a> •
+    <a href="#-agents-ai">Agents</a> •
+    <a href="#-base-de-connaissances-livre-finance">Ressources</a>
+  </p>
+</div>
+
+---
+
 
 Ce projet combine une bibliothèque de ressources financières approfondies avec un agent d'analyse automatisé pour le trading des futures ES (S&P 500).
 
