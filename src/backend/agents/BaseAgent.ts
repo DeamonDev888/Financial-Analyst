@@ -86,9 +86,26 @@ export abstract class BaseAgent {
                             // On ignore le "reasoning" pour ne garder que le résultat final
                             // IMPORTANT: KiloCode envoie le texte COMPLET à chaque update (snapshot), pas un delta.
                             // Donc on remplace fullResponse au lieu de concaténer.
-                            if (event.type === 'say' && event.content && event.say !== 'reasoning') {
+                            if (event.type === 'say' && event.say !== 'reasoning') {
+                                if (event.content) {
+                                    fullResponse = event.content;
+                                }
+                                // Parfois le JSON est directement dans metadata
+                                if (event.metadata && (event.metadata.sentiment || event.metadata.score)) {
+                                    fullResponse = JSON.stringify(event.metadata);
+                                }
+                            }
+
+                            // Capture du résultat final si c'est un type 'completion_result'
+                            if (event.type === 'completion_result' && event.content) {
                                 fullResponse = event.content;
                             }
+
+                            // Si KiloCode demande une validation du résultat, on considère que c'est fini et on coupe
+                            if (event.type === 'ask' && event.ask === 'completion_result') {
+                                child.kill(); // On force l'arrêt pour ne pas rester bloqué
+                            }
+
                         } catch (e) {
                             // Ignorer les lignes malformées ou non-JSON
                         }
@@ -115,18 +132,15 @@ export abstract class BaseAgent {
                         // Continue vers le nettoyage si échec
                     }
 
-                    // Tentative 2: Nettoyage agressif des artefacts de shell/escape (cas double-encoded)
-                    // Parfois l'output contient des \" au lieu de " à cause du piping Windows
-                    let aggressiveClean = cleanJson.replace(/^"|"$|\\"/g, (m) => m === '\\"' ? '"' : '') // Retire les guillemets englobants et unescape les internes
+                    // Tentative 2: Nettoyage agressif des artefacts de shell/escape
+                    let aggressiveClean = cleanJson.replace(/^"|"$|\\"/g, (m) => m === '\\"' ? '"' : '')
                         .replace(/\\n/g, '\n')
                         .trim();
 
-                    // Si après nettoyage il reste des guillemets au début/fin (double stringification), on nettoie encore
                     if (aggressiveClean.startsWith('"') && aggressiveClean.endsWith('"')) {
                         aggressiveClean = aggressiveClean.slice(1, -1);
                     }
 
-                    // On cherche le premier { et le dernier } pour extraire le JSON pur
                     const firstBrace = aggressiveClean.indexOf('{');
                     const lastBrace = aggressiveClean.lastIndexOf('}');
 
@@ -134,7 +148,44 @@ export abstract class BaseAgent {
                         aggressiveClean = aggressiveClean.substring(firstBrace, lastBrace + 1);
                     }
 
-                    resolve(JSON.parse(aggressiveClean));
+                    try {
+                        resolve(JSON.parse(aggressiveClean));
+                    } catch (e) {
+                        // Tentative 3: Fallback Parser pour le format Markdown (**SENTIMENT:** ...)
+                        console.warn(`[${this.agentName}] JSON Parsing failed, attempting Markdown fallback...`);
+
+                        const sentimentMatch = fullResponse.match(/\*\*SENTIMENT:\*\*\s*(\w+)/i);
+                        const scoreMatch = fullResponse.match(/\((-?\d+)\/100\)/);
+                        const riskMatch = fullResponse.match(/\*\*RISK LEVEL:\*\*\s*(\w+)/i);
+                        const summaryMatch = fullResponse.match(/\*\*SUMMARY:\*\*\s*([\s\S]+?)$/i);
+
+                        // Extraction des catalysts (liste à puces)
+                        const catalysts: string[] = [];
+                        const catalystRegex = /-\s+(.+)/g;
+                        let match;
+                        while ((match = catalystRegex.exec(fullResponse)) !== null) {
+                            if (match.index < (summaryMatch?.index || Infinity)) {
+                                catalysts.push(match[1].trim());
+                            }
+                        }
+
+                        if (sentimentMatch) {
+                            const result = {
+                                sentiment: sentimentMatch[1].toUpperCase(),
+                                score: scoreMatch ? parseInt(scoreMatch[1]) : 0,
+                                risk_level: riskMatch ? riskMatch[1].toUpperCase() : 'MEDIUM',
+                                catalysts: catalysts,
+                                summary: summaryMatch ? summaryMatch[1].trim() : "No summary extracted."
+                            };
+                            console.log(`[${this.agentName}] Markdown fallback successful.`);
+                            resolve(result);
+                            return;
+                        }
+
+                        console.error(`[${this.agentName}] Parsing Failed:`, e);
+                        console.error(`[${this.agentName}] Raw Output:`, fullResponse);
+                        reject(new Error('Failed to parse KiloCode output'));
+                    }
 
                 } catch (error) {
                     console.error(`[${this.agentName}] Parsing Failed:`, error);
