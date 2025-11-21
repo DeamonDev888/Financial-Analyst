@@ -48,20 +48,34 @@ export class NewsDatabaseService {
     private pool: Pool;
 
     constructor(connectionString?: string) {
-        // Utiliser les variables d'environnement ou une connexion par défaut
-        const defaultConfig = {
-            host: process.env.DB_HOST || 'localhost',
-            port: parseInt(process.env.DB_PORT || '5432'),
-            database: process.env.DB_NAME || 'financial_analyst',
-            user: process.env.DB_USER || 'postgres',
-            password: process.env.DB_PASSWORD || 'password',
-            max: 20,
-            idleTimeoutMillis: 30000,
-            connectionTimeoutMillis: 2000,
-        };
+        // Vérifier si nous voulons utiliser la base de données
+        const useDatabase = process.env.USE_DATABASE !== 'false';
 
-        this.pool = new Pool(connectionString ? { connectionString } : defaultConfig);
-        this.initializeDatabase();
+        if (!useDatabase) {
+            console.log("🔌 Database disabled - running in memory-only mode");
+            this.pool = null as any;
+            return;
+        }
+
+        try {
+            // Utiliser les variables d'environnement ou une connexion par défaut
+            const defaultConfig = {
+                host: process.env.DB_HOST || 'localhost',
+                port: parseInt(process.env.DB_PORT || '5432'),
+                database: process.env.DB_NAME || 'financial_analyst',
+                user: process.env.DB_USER || 'postgres',
+                password: process.env.DB_PASSWORD || 'password',
+                max: 20,
+                idleTimeoutMillis: 30000,
+                connectionTimeoutMillis: 2000,
+            };
+
+            this.pool = new Pool(connectionString ? { connectionString } : defaultConfig);
+            this.initializeDatabase();
+        } catch (error) {
+            console.log("⚠️ Database initialization failed - running in memory-only mode");
+            this.pool = null as any;
+        }
     }
 
     /**
@@ -87,6 +101,11 @@ export class NewsDatabaseService {
      * Teste la connexion à la base de données
      */
     async testConnection(): Promise<boolean> {
+        if (!this.pool) {
+            console.log("🔌 Database disabled - running in memory-only mode");
+            return false;
+        }
+
         try {
             const client = await this.pool.connect();
             const result = await client.query('SELECT NOW()');
@@ -94,7 +113,7 @@ export class NewsDatabaseService {
             console.log("✅ Database connection successful");
             return true;
         } catch (error) {
-            console.error("❌ Database connection failed:", error);
+            console.log("⚠️ Database connection failed - using memory-only mode");
             return false;
         }
     }
@@ -103,6 +122,11 @@ export class NewsDatabaseService {
      * Récupère les news récentes depuis la base de données
      */
     async getRecentNews(hoursBack: number = 24, sources?: string[]): Promise<DatabaseNewsItem[]> {
+        if (!this.pool) {
+            // Mode mémoire - retourne un tableau vide
+            return [];
+        }
+
         const client = await this.pool.connect();
         try {
             let query = `
@@ -132,6 +156,12 @@ export class NewsDatabaseService {
      * Sauvegarde les news dans la base de données
      */
     async saveNewsItems(newsItems: NewsItem[]): Promise<number> {
+        if (!this.pool) {
+            // Mode mémoire - ne fait rien
+            console.log(`💾 Memory-only mode: ${newsItems.length} news items processed but not saved`);
+            return 0;
+        }
+
         if (newsItems.length === 0) return 0;
 
         const client = await this.pool.connect();
@@ -192,7 +222,7 @@ export class NewsDatabaseService {
         } catch (error) {
             await client.query('ROLLBACK');
             console.error("Error saving news items:", error);
-            throw error;
+            // Ne pas lancer d'erreur pour permettre à l'application de continuer
         } finally {
             client.release();
         }
@@ -274,6 +304,11 @@ export class NewsDatabaseService {
      * Vérifie si le cache de news est à jour
      */
     async isCacheFresh(maxAgeHours: number = 2): Promise<boolean> {
+        if (!this.pool) {
+            // Mode mémoire - toujours considéré comme non frais
+            return false;
+        }
+
         const client = await this.pool.connect();
         try {
             const result = await client.query(`
@@ -283,6 +318,9 @@ export class NewsDatabaseService {
             `);
 
             return parseInt(result.rows[0].count) > 0;
+        } catch (error) {
+            console.log("⚠️ Cache freshness check failed - using memory-only mode");
+            return false;
         } finally {
             client.release();
         }
@@ -430,7 +468,11 @@ export class NewsDatabaseService {
      * Ferme proprement la connexion à la base de données
      */
     async close(): Promise<void> {
-        await this.pool.end();
-        console.log("🔌 Database connection closed");
+        if (this.pool) {
+            await this.pool.end();
+            console.log("🔌 Database connection closed");
+        } else {
+            console.log("🔌 Memory-only mode - no connection to close");
+        }
     }
 }
