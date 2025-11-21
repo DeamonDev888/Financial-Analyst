@@ -50,17 +50,17 @@ export class SentimentAgent extends BaseAgent {
         console.log(toonData);
         console.log("\n");
 
-        // Assurer que le dossier existe (BaseAgent le fait dans le constructeur mais on écrit direct ici)
+        // Assurer que le dossier existe
         await fs.mkdir(path.dirname(fullContextPath), { recursive: true });
         await fs.writeFile(fullContextPath, toonData, 'utf-8');
 
-        // 4. Construction du Prompt (Instructions seulement, Données via Pipe)
+        // 4. Construction du Prompt (Instructions + Données intégrées)
+        // On injecte directement les données pour éviter que l'IA ne demande "Que faire avec ce fichier ?"
         const prompt = `
 You are an expert Market Sentiment Analyst for ES Futures (S&P 500).
-The user has provided news headlines in TOON format via standard input.
 
 TASK:
-Analyze the provided TOON data and return the result in strict JSON format.
+Analyze the provided TOON data below and return the result in strict JSON format.
 
 CRITICAL INSTRUCTIONS:
 1. Output ONLY valid JSON.
@@ -90,16 +90,20 @@ JSON STRUCTURE:
   "risk_level": "LOW" | "MEDIUM" | "HIGH",
   "summary": "Brief explanation of the verdict"
 }
+
+DATA TO ANALYZE:
+${toonData}
 `;
 
-        // 5. Appel à KiloCode (x-ai)
-        // On passe le fichier de contexte en entrée (pipe)
-        const analysis = await this.callKiloCode({
+        // 5. Appel à KiloCode (Mode Pipe/Stream)
+        console.log(`[${this.agentName}] Sending request to KiloCode...`);
+
+        const analysisResult = await this.callKiloCode({
             prompt: prompt,
-            inputFile: contextFilePath,
-            outputFile: `data/agent-data/${this.agentName}/sentiment_analysis.json`
+            // inputFile retiré car données intégrées au prompt
+            outputFile: `data/agent-data/${this.agentName}/sentiment_analysis.json`,
         });
 
-        return analysis;
+        return analysisResult;
     }
 }
