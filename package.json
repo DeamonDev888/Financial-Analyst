@@ -7,7 +7,16 @@
     "build": "tsc",
     "start": "node dist/backend/server.js",
     "dev": "ts-node src/backend/server.ts",
-    "test": "jest"
+    "test": "jest",
+    "pipeline": "ts-node src/backend/scripts/run_news_data_pipeline.ts",
+    "sentiment": "ts-node src/backend/scripts/run_agent_sentiment.ts",
+    "analyze": "ts-node src/backend/scripts/analyze_news_data.ts",
+    "analyze:week": "npm run analyze week",
+    "analyze:month": "npm run analyze month",
+    "analyze:today": "npm run analyze today",
+    "export:csv": "npm run analyze export",
+    "data:dates": "npm run analyze dates",
+    "data:today": "npm run analyze today"
   },
   "keywords": [
     "trading",

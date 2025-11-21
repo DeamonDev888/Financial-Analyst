@@ -41,6 +41,9 @@ Chaque agent (`BaseAgent`) est une classe TypeScript qui enveloppe des appels au
 *   **Rôles** :
     *   `RiskAgent` : Analyse l'exposition et la volatilité.
     *   `StrategyAgent` : Propose des plans de trading basés sur l'historique.
+    *   `RiskAgent` : Analyse l'exposition et la volatilité.
+    *   `StrategyAgent` : Propose des plans de trading basés sur l'historique.
+    *   `SentimentAgent` : Scrape les news (ZeroHedge, ZoneBourse) et analyse le sentiment global (Bullish/Bearish).
     *   `MasterAgent` : Consolide les signaux pour la décision finale.
 
 ### 4. La Couche de Persistance (Database Layer)
@@ -82,7 +85,9 @@ Le traitement suit un flux rigoureux pour assurer la traçabilité :
 
 ---
 
-## 📂 Structure de Fichiers
+## 📂 Structure de Fichiers (Principe : Une Fonction = Un Fichier)
+
+L'architecture suit strictement le principe de **Modularité Atomique**. Chaque classe, utilitaire ou fonction majeure doit résider dans son propre fichier pour faciliter la maintenance et les tests unitaires.
 
 ```text
 /novaquote-system
@@ -97,19 +102,44 @@ Le traitement suit un flux rigoureux pour assurer la traçabilité :
 │
 ├── /src
 │   ├── /backend
-│   │   ├── /agents       # Logique des agents
-│   │   │   ├── BaseAgent.ts     # Wrapper KiloCode
-│   │   │   ├── RiskAgent.ts
-│   │   │   └── MasterAgent.ts
-│   │   ├── /core         # WebSocket, Server
-│   │   └── /db           # Client PostgreSQL
+│   │   ├── /agents       # Logique des agents (1 Agent = 1 Fichier)
+│   │   │   ├── BaseAgent.ts     # Wrapper KiloCode Abstrait
+│   │   │   ├── RiskAgent.ts     # Agent de Risque
+│   │   │   ├── StrategyAgent.ts # Agent de Stratégie
+│   │   │   ├── SentimentAgent.ts# Agent de Sentiment (News & Scraping)
+│   │   │   └── MasterAgent.ts   # Agent Orchestrateur
+│   │   │
+│   │   ├── /ingestion    # Clients API (1 Service = 1 Fichier)
+│   │   │   ├── FredClient.ts      # Client FRED API
+│   │   │   ├── BlsClient.ts       # Client BLS API
+│   │   │   ├── FmpClient.ts       # Client FMP API
+│   │   │   └── NewsAggregator.ts  # Scraper de News
+│   │   │
+│   │   ├── /core         # Logique Métier (1 Algo = 1 Fichier)
+│   │   │   ├── Normalizer.ts      # Normalisation des données
+│   │   │   ├── SurpriseIndex.ts   # Calculateur de surprise macro
+│   │   │   ├── TrendCalculator.ts # Algo de tendance pondérée
+│   │   │   └── Server.ts          # Point d'entrée du serveur
+│   │   │
+│   │   ├── /db           # Persistance (1 Entité = 1 Repository)
+│   │   │   ├── DbClient.ts        # Connexion Singleton
+│   │   │   ├── EventRepository.ts # CRUD Événements Éco
+│   │   │   └── SignalRepository.ts# CRUD Signaux Trading
+│   │   │
+│   │   └── /utils        # Utilitaires (1 Outil = 1 Fichier)
+│   │       ├── ToonFormatter.ts   # Convertisseur JSON -> TOON
+│   │       └── Logger.ts          # Gestionnaire de logs
 │   │
-│   ├── /frontend         # Code client (React/HTML)
+│   ├── /frontend         # Code client
+│   │   ├── /components   # Composants UI isolés
+│   │   └── index.html
 │   │
-│   └── /types            # Interfaces partagées (JSON Schemas)
+│   └── /types            # Interfaces partagées
+│       ├── EconomicEvent.ts
+│       └── TradingSignal.ts
 │
 ├── /config               # Configuration
-│   └── kilocode.json     # (Reference seulement, config réelle dans ~/.kilocode)
+│   └── kilocode.json     # (Reference seulement)
 │
 └── package.json
 ```
