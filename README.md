@@ -8,8 +8,10 @@ L'objectif principal est de développer un agent autonome capable d'agréger des
 
 ### 🛠 Architecture & Tech Stack
 *   **Orchestration** : n8n (Workflows automatisés)
+*   **Langage** : TypeScript (Logique d'analyse)
+*   **Base de Données** : PostgreSQL (Stockage historique, Indicateurs & Prédictions)
 *   **Connectivité** : API REST (JSON)
-*   **Sorties** : Google Sheets (Base de données), Telegram/Slack (Alertes), Rapports structurés.
+*   **Sorties** : Telegram/Slack (Alertes), Rapports structurés, Google Sheets (Visualisation).
 
 ### 📡 Sources de Données & APIs
 L'agent se connecte aux sources suivantes pour une analyse macro-économique complète :
@@ -73,4 +75,4 @@ Une collection de ressources pour l'analyse fondamentale et la compréhension de
 - **Guide to Economic Indicators CPI.pdf** - Comprendre l'IPC et les indicateurs.
 
 ---
-*Projet en développement actif : Intégration n8n et construction de la base de données de prix anticipés en cours.*
+*Projet en développement actif : Intégration n8n, Scripting TypeScript et mise en place de la base PostgreSQL.*
