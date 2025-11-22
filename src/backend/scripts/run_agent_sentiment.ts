@@ -1,4 +1,4 @@
-import { SentimentAgent } from '../agents/SentimentAgent';
+import { SentimentAgentFinal } from '../agents/SentimentAgentFinal';
 
 /**
  * SCRIPT: run_agent_sentiment.ts
@@ -13,7 +13,7 @@ import { SentimentAgent } from '../agents/SentimentAgent';
 
 async function main() {
     console.log("🚀 Initializing Sentiment Agent...");
-    const agent = new SentimentAgent();
+    const agent = new SentimentAgentFinal();
 
     try {
         console.log("🧠 Running Market Analysis (This may take 10-30s)...");

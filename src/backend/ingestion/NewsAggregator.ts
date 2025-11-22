@@ -1,5 +1,6 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import { FredClient } from './FredClient';
 
 export interface NewsItem {
     title: string;
@@ -10,6 +11,11 @@ export interface NewsItem {
 }
 
 export class NewsAggregator {
+    private fredClient: FredClient;
+
+    constructor() {
+        this.fredClient = new FredClient();
+    }
 
     /**
      * Récupère les news via RSS pour ZeroHedge (Beaucoup plus fiable que le scraping HTML)
@@ -102,6 +108,27 @@ export class NewsAggregator {
                 timestamp: new Date()
             }
         ];
+    }
+
+    /**
+     * Récupère les indicateurs économiques via FRED
+     */
+    async fetchFredEconomicData(): Promise<NewsItem[]> {
+        try {
+            const indicators = await this.fredClient.fetchAllKeyIndicators();
+            
+            return indicators.map(ind => ({
+                title: `[MACRO DATA] ${ind.title}: ${ind.value} (As of ${ind.date})`,
+                source: 'FRED',
+                // URL unique par date pour éviter la déduplication abusive si la valeur change
+                url: `https://fred.stlouisfed.org/series/${ind.id}?date=${ind.date}`,
+                timestamp: new Date(ind.date),
+                sentiment: 'neutral' // Le sentiment sera analysé par l'IA
+            }));
+        } catch (error) {
+            console.error('Error fetching FRED data:', error);
+            return [];
+        }
     }
 
     /**

@@ -123,6 +123,7 @@ SELECT
         WHEN source = 'ZeroHedge' THEN '⚡ MARKET'
         WHEN source = 'CNBC' THEN '💰 TRADING'
         WHEN source = 'FinancialJuice' THEN '📈 FUTURES'
+        WHEN source = 'FRED' THEN '📊 MACRO'
         ELSE '📰 GENERAL'
     END as source_type,
     created_at
@@ -135,6 +136,7 @@ LIMIT 15;
 
 1. **Ouvrir pgAdmin 4**
 2. **Se connecter** au serveur PostgreSQL avec les identifiants :
+
    - Host: `localhost`
    - Port: `5432`
    - Database: `financial_analyst`
@@ -142,6 +144,7 @@ LIMIT 15;
    - Password: `9022`
 
 3. **Accéder au Query Tool** :
+
    - Clic droit sur la base `financial_analyst`
    - Sélectionner **Query Tool**
 
@@ -161,6 +164,7 @@ LIMIT 15;
 ## 🔧 Requêtes rapides utiles
 
 ### Voir les 5 dernières analyses
+
 ```sql
 SELECT overall_sentiment, score, risk_level, created_at
 FROM sentiment_analyses
@@ -169,6 +173,7 @@ LIMIT 5;
 ```
 
 ### Compter les articles par source
+
 ```sql
 SELECT source, COUNT(*) as count
 FROM news_items
@@ -176,7 +181,18 @@ GROUP BY source
 ORDER BY count DESC;
 ```
 
+### Voir les données macro-économiques (FRED)
+
+```sql
+SELECT title, created_at
+FROM news_items
+WHERE source = 'FRED'
+ORDER BY created_at DESC
+LIMIT 10;
+```
+
 ### Voir les dernières news
+
 ```sql
 SELECT title, source, created_at
 FROM news_items
@@ -186,4 +202,4 @@ LIMIT 10;
 
 ---
 
-*Document généré pour le projet Financial Analyst*
+_Document généré pour le projet Financial Analyst_

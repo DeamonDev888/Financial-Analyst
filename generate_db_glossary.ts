@@ -6,7 +6,7 @@ const OUTPUT_PATH = path.join(__dirname, 'DATABASE_GLOSSARY.md');
 
 // Descriptions manuelles pour enrichir la documentation
 const TABLE_DESCRIPTIONS: { [key: string]: string } = {
-    'news_items': 'Stocke les articles de news bruts et traités récupérés depuis les sources (ZeroHedge, CNBC, etc.). C\'est la source de vérité pour les données d\'entrée.',
+    'news_items': 'Stocke les articles de news bruts et traités récupérés depuis les sources (ZeroHedge, CNBC, FinancialJuice) ainsi que les indicateurs macro-économiques (FRED). C\'est la source de vérité pour les données d\'entrée.',
     'sentiment_analyses': 'Contient l\'historique des analyses générées par l\'IA. Chaque ligne correspond à une exécution de l\'agent de sentiment.',
     'news_sources': 'Registre des sources de données, leur configuration (URL RSS) et leur état de santé (succès/échec du scraping).',
     'scraping_sessions': 'Logs des sessions de scraping pour le monitoring et le débogage.',

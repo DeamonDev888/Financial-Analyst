@@ -1,5 +1,5 @@
-import { SentimentAgent } from '../agents/SentimentAgent';
 import { NewsDatabaseService } from '../database/NewsDatabaseService';
+import { NewsAggregator, NewsItem } from '../ingestion/NewsAggregator';
 
 /**
  * SCRIPT: refresh_news_cache.ts
@@ -42,14 +42,14 @@ async function main() {
     console.log(`Options: Force=${options.force}, Cleanup=${options.cleanup}, Stats=${options.stats}, Hours=${options.hours || 'default'}`);
     console.log("");
 
-    const agent = new SentimentAgent();
     const dbService = new NewsDatabaseService();
+    const aggregator = new NewsAggregator();
 
     try {
         // 1. Afficher les statistiques si demandé
         if (options.stats) {
             console.log("📊 Database Statistics:");
-            const stats = await agent.getDatabaseStats();
+            const stats = await dbService.getDatabaseStats();
             if (stats.error) {
                 console.log(`❌ Error: ${stats.error}`);
             } else {
@@ -88,9 +88,39 @@ async function main() {
 
             // 3. Forcer le rafraîchissement
             const startTime = Date.now();
-            await agent.refreshCache();
-            const duration = (Date.now() - startTime) / 1000;
+            
+            // Scraping des sources
+            console.log("📡 Fetching news from sources...");
+            const sources = ['ZeroHedge', 'CNBC', 'FinancialJuice'];
+            const [zeroHedge, cnbc, financialJuice] = await Promise.allSettled([
+                aggregator.fetchZeroHedgeHeadlines(),
+                aggregator.fetchCNBCMarketNews(),
+                aggregator.fetchFinancialJuice()
+            ]);
 
+            const allNews: NewsItem[] = [];
+            const results = [zeroHedge, cnbc, financialJuice];
+
+            results.forEach((result, index) => {
+                if (result.status === 'fulfilled') {
+                    allNews.push(...result.value);
+                    dbService.updateSourceStatus(sources[index], true);
+                    console.log(`   ✅ ${sources[index]}: ${result.value.length} items`);
+                } else {
+                    console.error(`   ❌ ${sources[index]} failed:`, result.reason);
+                    dbService.updateSourceStatus(sources[index], false, result.reason instanceof Error ? result.reason.message : 'Unknown error');
+                }
+            });
+
+            // Sauvegarde en base
+            if (allNews.length > 0) {
+                const savedCount = await dbService.saveNewsItems(allNews);
+                console.log(`💾 Saved ${savedCount} new items to database`);
+            } else {
+                console.log("⚠️ No news fetched from any source");
+            }
+
+            const duration = (Date.now() - startTime) / 1000;
             console.log(`✅ Cache refreshed in ${duration.toFixed(2)}s`);
         } else {
             console.log("✅ Cache is fresh, no refresh needed");
@@ -99,16 +129,18 @@ async function main() {
         // 4. Nettoyer les anciennes données si demandé
         if (options.cleanup) {
             console.log("🧹 Cleaning up old data...");
-            await agent.cleanupOldData(30); // Garder 30 jours par défaut
+            await dbService.cleanupOldData(30); // Garder 30 jours par défaut
             console.log("✅ Cleanup completed");
         }
 
         // 5. Afficher les statistiques finales
-        console.log("\n📈 Final Statistics:");
-        const finalStats = await agent.getDatabaseStats();
-        if (!finalStats.error && finalStats.news) {
-            console.log(`Total news in database: ${finalStats.news.total_news}`);
-            console.log(`News from last 24h: ${finalStats.news.today_news}`);
+        if (!options.stats) { // Si on ne les a pas déjà affichées
+            console.log("\n📈 Final Statistics:");
+            const finalStats = await dbService.getDatabaseStats();
+            if (!finalStats.error && finalStats.news) {
+                console.log(`Total news in database: ${finalStats.news.total_news}`);
+                console.log(`News from last 24h: ${finalStats.news.today_news}`);
+            }
         }
 
         console.log("\n✅ Cache refresh process completed successfully!");
@@ -117,7 +149,7 @@ async function main() {
         console.error("❌ Cache refresh failed:", error);
         process.exit(1);
     } finally {
-        await agent.cleanup();
+        await dbService.close();
     }
 }
 

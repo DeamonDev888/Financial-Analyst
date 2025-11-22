@@ -1,6 +1,6 @@
 import { SentimentAgentFinal } from './src/backend/agents/SentimentAgentFinal';
 import { NewsDatabaseService } from './src/backend/database/NewsDatabaseService';
-import { NewsAggregator } from './src/backend/ingestion/NewsAggregator';
+import { NewsAggregator, NewsItem } from './src/backend/ingestion/NewsAggregator';
 import * as dotenv from 'dotenv';
 
 // Charger les variables d'environnement
@@ -71,6 +71,63 @@ class FinancialAnalystApp {
     }
 
     /**
+     * Refresh news data from sources
+     */
+    async refreshData(force: boolean = false): Promise<void> {
+        console.log("\n🔄 Starting Data Refresh...");
+        console.log("=".repeat(60));
+
+        // Check cache first unless forced
+        if (!force) {
+            const isFresh = await this.dbService.isCacheFresh(2);
+            if (isFresh) {
+                console.log("✅ Cache is fresh (less than 2h old). No refresh needed.");
+                console.log("   Use --force to refresh anyway.");
+                return;
+            }
+            console.log("⚠️ Cache is stale. Refreshing...");
+        } else {
+            console.log("⚡ Force refresh requested.");
+        }
+
+        try {
+            const sources = ['ZeroHedge', 'CNBC', 'FinancialJuice', 'FRED'];
+            console.log(`\n📡 Fetching news from ${sources.join(', ')}...`);
+
+            const [zeroHedge, cnbc, financialJuice, fred] = await Promise.allSettled([
+                this.newsAggregator.fetchZeroHedgeHeadlines(),
+                this.newsAggregator.fetchCNBCMarketNews(),
+                this.newsAggregator.fetchFinancialJuice(),
+                this.newsAggregator.fetchFredEconomicData()
+            ]);
+
+            const allNews: NewsItem[] = [];
+            const results = [zeroHedge, cnbc, financialJuice, fred];
+
+            results.forEach((result, index) => {
+                if (result.status === 'fulfilled') {
+                    allNews.push(...result.value);
+                    this.dbService.updateSourceStatus(sources[index], true);
+                    console.log(`   ✅ ${sources[index]}: ${result.value.length} items`);
+                } else {
+                    console.error(`   ❌ ${sources[index]} failed:`, result.reason);
+                    this.dbService.updateSourceStatus(sources[index], false, result.reason instanceof Error ? result.reason.message : 'Unknown error');
+                }
+            });
+
+            if (allNews.length > 0) {
+                const savedCount = await this.dbService.saveNewsItems(allNews);
+                console.log(`\n💾 Saved ${savedCount} new items to database.`);
+            } else {
+                console.log("\n⚠️ No news fetched from any source.");
+            }
+
+        } catch (error) {
+            console.error("\n❌ Refresh failed:", error instanceof Error ? error.message : 'Unknown error');
+        }
+    }
+
+    /**
      * Run sentiment analysis
      */
     async analyzeMarketSentiment(): Promise<void> {
@@ -124,6 +181,8 @@ class FinancialAnalystApp {
                 console.log(`\n🔄 Analysis #${analysisCount} - ${new Date().toLocaleString()}`);
                 console.log("-".repeat(40));
 
+                // Auto-refresh if needed in continuous mode
+                await this.refreshData(false);
                 await this.analyzeMarketSentiment();
 
                 console.log(`\n⏰ Waiting 5 minutes before next analysis...`);
@@ -151,23 +210,20 @@ class FinancialAnalystApp {
 
 Modes:
   --analyze          Run single sentiment analysis
-  --continuous       Run continuous monitoring (5-min intervals)
-  --status          Show database status only
-  --help           Show this help message
+  --refresh          Refresh news data from sources
+  --continuous       Run continuous monitoring (auto-refresh + analyze)
+  --status           Show database status only
+  --help             Show this help message
+
+Options:
+  --force            Force refresh even if cache is fresh (use with --refresh)
 
 Examples:
   npm run analyze              # Single analysis
+  npm run refresh              # Refresh data
+  npm run refresh -- --force   # Force refresh data
   npm run continuous           # Continuous monitoring
   npm run status               # Database status
-  npx ts-node run.ts --analyze # Direct execution
-
-Features:
-  ✅ Database-driven sentiment analysis
-  ✅ KiloCode AI integration
-  ✅ No simulated data fallbacks
-  ✅ Robust error handling (N/A when fails)
-  ✅ Real-time ES Futures sentiment
-  ✅ 22+ news sources analyzed
         `);
     }
 }
@@ -181,6 +237,7 @@ async function main() {
     // Parse command line arguments
     const args = process.argv.slice(2);
     const mode = args[0] || '--help';
+    const force = args.includes('--force');
 
     try {
         switch (mode) {
@@ -190,6 +247,15 @@ async function main() {
                 if (initialized) {
                     await app.getNewsStatus();
                     await app.analyzeMarketSentiment();
+                }
+                break;
+
+            case '--refresh':
+            case '-r':
+                const refreshInit = await app.initialize();
+                if (refreshInit) {
+                    await app.refreshData(force);
+                    await app.getNewsStatus();
                 }
                 break;
 
