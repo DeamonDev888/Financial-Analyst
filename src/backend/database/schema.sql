@@ -30,6 +30,7 @@ DROP TABLE IF EXISTS sentiment_analyses CASCADE;
 CREATE TABLE sentiment_analyses (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     analysis_date DATE NOT NULL,
+    analysis_time TIME NOT NULL,
     overall_sentiment VARCHAR(20) CHECK (overall_sentiment IN ('bullish', 'bearish', 'neutral')),
     score INTEGER CHECK (score >= -100 AND score <= 100),
     risk_level VARCHAR(20) CHECK (risk_level IN ('low', 'medium', 'high')),
@@ -38,6 +39,22 @@ CREATE TABLE sentiment_analyses (
     summary TEXT,
     news_count INTEGER DEFAULT 0,
     sources_analyzed JSONB DEFAULT '{}',
+    -- Nouveaux champs pour algorithmes avancés
+    market_session VARCHAR(20) CHECK (market_session IN ('pre-market', 'regular', 'after-hours', 'weekend')),
+    inference_duration_ms INTEGER, -- Temps d'inférence en millisecondes
+    kilocode_tokens_used INTEGER DEFAULT 0,
+    kilocode_model_version VARCHAR(50),
+    volatility_estimate DECIMAL(5,2), -- Estimation de volatilité 0-100
+    market_regime VARCHAR(20) CHECK (market_regime IN ('bull', 'bear', 'sideways', 'transitional')),
+    sentiment_strength VARCHAR(15) CHECK (sentiment_strength IN ('weak', 'moderate', 'strong', 'extreme')),
+    key_insights JSONB DEFAULT '[]', -- Insights spécifiques pour algorithmes
+    trading_signals JSONB DEFAULT '{}', -- Signaux de trading générés
+    technical_bias VARCHAR(20) CHECK (technical_bias IN ('oversold', 'neutral', 'overbought')),
+    news_impact_level VARCHAR(15) CHECK (news_impact_level IN ('low', 'medium', 'high', 'critical')),
+    algorithm_confidence DECIMAL(3,2), -- Confiance de l'algorithme 0-1
+    metadata JSONB DEFAULT '{}', -- Métadonnées additionnelles
+    validation_flags JSONB DEFAULT '{}', -- Flags de validation pour algorithmes
+    performance_metrics JSONB DEFAULT '{}', -- Métriques de performance
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -146,6 +163,60 @@ SELECT
 FROM news_sources ns
 ORDER BY success_rate DESC;
 
+-- Table pour les séries temporelles de marché (pour algorithmes)
+CREATE TABLE IF NOT EXISTS market_time_series (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+    sentiment_score INTEGER CHECK (sentiment_score >= -100 AND sentiment <= 100),
+    volatility_estimate DECIMAL(5,2),
+    news_impact_score DECIMAL(5,2),
+    market_session VARCHAR(20) CHECK (market_session IN ('pre-market', 'regular', 'after-hours', 'weekend')),
+    trading_volume_trend VARCHAR(10) CHECK (trading_volume_trend IN ('low', 'normal', 'high', 'extreme')),
+    key_events JSONB DEFAULT '[]',
+    technical_indicators JSONB DEFAULT '{}',
+    correlation_metrics JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Table pour les patterns de marché détectés
+CREATE TABLE IF NOT EXISTS market_patterns (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    pattern_name VARCHAR(100) NOT NULL,
+    pattern_type VARCHAR(50) CHECK (pattern_type IN ('sentiment', 'volatility', 'correlation', 'momentum', 'reversal')),
+    detection_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    confidence_score DECIMAL(3,2) CHECK (confidence_score >= 0 AND confidence_score <= 1),
+    duration_minutes INTEGER,
+    strength VARCHAR(15) CHECK (strength IN ('weak', 'moderate', 'strong', 'extreme')),
+    description TEXT,
+    implications JSONB DEFAULT '{}',
+    historical_accuracy DECIMAL(3,2),
+    related_analyses UUID[] DEFAULT '{}',
+    metadata JSONB DEFAULT '{}',
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Table pour les métriques de performance des algorithmes
+CREATE TABLE IF NOT EXISTS algorithm_performance (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    algorithm_name VARCHAR(100) NOT NULL,
+    version VARCHAR(20),
+    test_date DATE NOT NULL,
+    accuracy_score DECIMAL(5,4),
+    precision_score DECIMAL(5,4),
+    recall_score DECIMAL(5,4),
+    f1_score DECIMAL(5,4),
+    false_positive_rate DECIMAL(5,4),
+    false_negative_rate DECIMAL(5,4),
+    prediction_confidence_avg DECIMAL(3,2),
+    predictions_count INTEGER DEFAULT 0,
+    correct_predictions INTEGER DEFAULT 0,
+    metrics JSONB DEFAULT '{}',
+    performance_grade VARCHAR(2) CHECK (performance_grade IN ('A+', 'A', 'B+', 'B', 'C+', 'C', 'D', 'F')),
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Vues utilitaires simples pour les analyses
 CREATE OR REPLACE VIEW news_for_analysis AS
 SELECT
@@ -167,6 +238,7 @@ CREATE OR REPLACE VIEW recent_sentiment_analyses AS
 SELECT
     id,
     analysis_date,
+    analysis_time,
     overall_sentiment,
     score,
     risk_level,
@@ -174,7 +246,43 @@ SELECT
     catalysts,
     summary,
     news_count,
+    market_session,
+    inference_duration_ms,
+    volatility_estimate,
+    sentiment_strength,
+    news_impact_level,
     created_at
 FROM sentiment_analyses
 WHERE analysis_date >= NOW() - INTERVAL '30 days'
-ORDER BY analysis_date DESC;
+ORDER BY analysis_date DESC, analysis_time DESC;
+
+-- Vue pour les patterns actifs
+CREATE OR REPLACE VIEW active_market_patterns AS
+SELECT
+    id,
+    pattern_name,
+    pattern_type,
+    detection_date,
+    confidence_score,
+    strength,
+    description,
+    historical_accuracy,
+    DATEDIFF(NOW(), detection_date) as age_days
+FROM market_patterns
+WHERE is_active = TRUE
+  AND detection_date >= NOW() - INTERVAL '7 days'
+ORDER BY confidence_score DESC, detection_date DESC;
+
+-- Vue pour les séries temporelles récentes
+CREATE OR REPLACE VIEW recent_time_series AS
+SELECT
+    timestamp,
+    sentiment_score,
+    volatility_estimate,
+    news_impact_score,
+    market_session,
+    trading_volume_trend,
+    EXTRACT(EPOCH FROM timestamp) as epoch_timestamp
+FROM market_time_series
+WHERE timestamp >= NOW() - INTERVAL '24 hours'
+ORDER BY timestamp DESC;

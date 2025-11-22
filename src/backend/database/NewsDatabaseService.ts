@@ -598,6 +598,135 @@ export class NewsDatabaseService {
     }
 
     /**
+     * Sauvegarde une analyse de sentiment enrichie avec les nouvelles colonnes
+     */
+    async saveEnhancedSentimentAnalysis(analysis: any): Promise<string> {
+        if (!this.pool) {
+            console.log("🔌 Database disabled - skipping enhanced sentiment analysis save");
+            return '';
+        }
+
+        try {
+            // S'assurer que les tables existent
+            await this.initializeDatabase();
+
+            const client = await this.pool.connect();
+            const result = await client.query(`
+                INSERT INTO sentiment_analyses (
+                    analysis_date, analysis_time, overall_sentiment, score, risk_level, confidence,
+                    catalysts, summary, news_count, sources_analyzed,
+                    market_session, inference_duration_ms, volatility_estimate, market_regime,
+                    sentiment_strength, key_insights, trading_signals, technical_bias,
+                    news_impact_level, algorithm_confidence, metadata, validation_flags,
+                    performance_metrics, created_at
+                ) VALUES (
+                    $1, $2, $3, $4, $5, $6,
+                    $7, $8, $9, $10,
+                    $11, $12, $13, $14,
+                    $15, $16, $17, $18,
+                    $19, $20, $21, $22,
+                    $23, $24
+                ) RETURNING id
+            `, [
+                analysis.analysis_date || new Date().toISOString().split('T')[0],
+                analysis.analysis_time || new Date().toTimeString(),
+                analysis.overall_sentiment?.toLowerCase(),
+                analysis.score,
+                analysis.risk_level?.toLowerCase(),
+                analysis.confidence || 0.8,
+                JSON.stringify(analysis.catalysts || []),
+                analysis.summary,
+                analysis.news_count || 0,
+                JSON.stringify(analysis.sources_analyzed || {}),
+                analysis.market_session || 'regular',
+                analysis.inference_duration_ms,
+                analysis.volatility_estimate || 25.0,
+                analysis.market_regime || 'transitional',
+                analysis.sentiment_strength || 'moderate',
+                JSON.stringify(analysis.key_insights || []),
+                JSON.stringify(analysis.trading_signals || {}),
+                analysis.technical_bias || 'neutral',
+                analysis.news_impact_level || 'medium',
+                analysis.algorithm_confidence || 0.8,
+                JSON.stringify(analysis.metadata || {}),
+                JSON.stringify(analysis.validation_flags || {}),
+                JSON.stringify(analysis.performance_metrics || {}),
+                new Date()
+            ]);
+
+            // Ajouter à la série temporelle
+            await this.addToTimeSeries(analysis);
+
+            client.release();
+            return result.rows[0].id;
+
+        } catch (error) {
+            console.error("Error saving enhanced sentiment analysis:", error);
+            throw error;
+        }
+    }
+
+    /**
+     * Ajouter les données à la série temporelle de marché
+     */
+    private async addToTimeSeries(analysis: any): Promise<void> {
+        if (!this.pool) return;
+
+        try {
+            const client = await this.pool.connect();
+            await client.query(`
+                INSERT INTO market_time_series (
+                    timestamp, sentiment_score, volatility_estimate, news_impact_score,
+                    market_session, trading_volume_trend, key_events,
+                    technical_indicators, correlation_metrics, created_at
+                ) VALUES (
+                    $1, $2, $3, $4,
+                    $5, $6, $7,
+                    $8, $9, $10
+                )
+            `, [
+                new Date(),
+                analysis.score || 0,
+                analysis.volatility_estimate || 25.0,
+                this.calculateNewsImpactScore(analysis),
+                analysis.market_session || 'regular',
+                this.estimateTradingVolumeTrend(analysis),
+                JSON.stringify(analysis.key_insights || []),
+                JSON.stringify(analysis.technical_indicators || {}),
+                JSON.stringify(analysis.correlation_metrics || {}),
+                new Date()
+            ]);
+
+            client.release();
+
+        } catch (error) {
+            console.warn("Warning: Could not add to time series:", error);
+            // Ne pas lancer d'erreur, c'est une fonctionnalité additionnelle
+        }
+    }
+
+    /**
+     * Calculer un score d'impact des news
+     */
+    private calculateNewsImpactScore(analysis: any): number {
+        let score = 0;
+        if (analysis.news_count) score += Math.min(analysis.news_count * 2, 50);
+        if (analysis.risk_level === 'high') score += 30;
+        else if (analysis.risk_level === 'medium') score += 15;
+        return Math.min(score, 100);
+    }
+
+    /**
+     * Estimer la tendance du volume de trading
+     */
+    private estimateTradingVolumeTrend(analysis: any): string {
+        const score = Math.abs(analysis.score || 0);
+        if (score > 50) return 'high';
+        if (score > 20) return 'normal';
+        return 'low';
+    }
+
+    /**
      * Ferme proprement la connexion à la base de données
      */
     async close(): Promise<void> {

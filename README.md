@@ -1,15 +1,15 @@
 <div align="center">
   <img src="assets/logo.png" alt="Financial Analyst Logo" width="250" style="border-radius: 15px; box-shadow: 0 0 20px rgba(0, 122, 204, 0.5);">
 
-  # 🚀 Financial Analyst - ES Futures Trading System
+# 🚀 Financial Analyst - ES Futures Trading System
 
-  **Robust Market Sentiment Analysis with KiloCode AI & PostgreSQL Database**
+**Robust Market Sentiment Analysis with KiloCode AI & PostgreSQL Database**
 
-  [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-  [![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
-  [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-  [![KiloCode AI](https://img.shields.io/badge/AI-KiloCode%20%7C%20x--ai-FF6600?style=for-the-badge)](https://x.ai/)
-  [![License: ISC](https://img.shields.io/badge/License-ISC-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/ISC)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![KiloCode AI](https://img.shields.io/badge/AI-KiloCode%20%7C%20x--ai-FF6600?style=for-the-badge)](https://x.ai/)
+[![License: ISC](https://img.shields.io/badge/License-ISC-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/ISC)
 
   <p align="center">
     <a href="#-quick-start">Quick Start</a> •
@@ -26,11 +26,13 @@
 ## 🎯 Quick Start
 
 ### Prerequisites
+
 - **Node.js** 18+
 - **PostgreSQL** 13+
 - **KiloCode AI** (x-ai/grok-code-fast-1)
 
 ### One-Command Setup
+
 ```bash
 # Clone & Install
 git clone <repo-url>
@@ -58,6 +60,7 @@ npm run analyze
 ## 🚀 Features
 
 ### ✅ **Core Capabilities**
+
 - **🤖 KiloCode AI Integration** - Advanced sentiment analysis using x-ai models
 - **📊 Database-Driven Analysis** - 22+ news items from PostgreSQL database
 - **🚫 No Fallback Policy** - Returns "N/A" when analysis fails (no simulated data)
@@ -65,12 +68,14 @@ npm run analyze
 - **📈 ES Futures Focus** - Optimized for S&P 500 futures sentiment analysis
 
 ### 🎛️ **Operating Modes**
+
 - **Single Analysis** - One-time sentiment analysis
 - **Continuous Monitoring** - Automated analysis every 5 minutes
 - **Database Status** - View cache status and news statistics
 - **Help & Documentation** - Built-in usage instructions
 
 ### 📰 **News Sources**
+
 - **ZeroHedge** - Alternative market sentiment & macro news
 - **CNBC** - Traditional financial news & ES Futures coverage
 - **FinancialJuice** - Real-time market headlines
@@ -81,17 +86,20 @@ npm run analyze
 ## 📦 Installation
 
 ### 1. Clone Repository
+
 ```bash
 git clone https://github.com/Terlou06/Financial-Analyst.git
 cd financial-analyst
 ```
 
 ### 2. Install Dependencies
+
 ```bash
 npm install
 ```
 
 ### 3. Database Setup
+
 ```bash
 # Create .env file
 cp .env.example .env
@@ -108,6 +116,7 @@ npx ts-node create_database.ts
 ```
 
 ### 4. Verify Installation
+
 ```bash
 # Test database connection
 npm run status
@@ -121,6 +130,7 @@ npm run analyze
 ## 🎮 Usage
 
 ### Main Application (run.ts)
+
 The primary entry point with multiple operating modes:
 
 ```bash
@@ -144,6 +154,7 @@ npx ts-node run.ts --help
 ```
 
 ### Package.json Scripts
+
 ```json
 {
   "scripts": {
@@ -157,6 +168,7 @@ npx ts-node run.ts --help
 ```
 
 ### Example Output
+
 ```
 🚀 Initializing Financial Analyst Application...
 ============================================================
@@ -202,6 +214,7 @@ npx ts-node run.ts --help
 ## 🏗 Architecture
 
 ### 🤖 SentimentAgentFinal (Core Agent)
+
 ```
 SentimentAgentFinal
 ├── Database-Only Mode
@@ -276,19 +289,11 @@ SentimentAgentFinal
 ```
 
 #### **Database Connection**
-```bash
-# PostgreSQL Connection Info
-Host: localhost
-Port: 5432
-Database: financial_analyst
-User: postgres
-Password: 9022
 
-# Connection String
-postgresql://postgres:9022@localhost:5432/financial_analyst
-```
+See `.env.example` for configuration details.
 
 #### **Key Features**
+
 - ✅ **22+ articles financiers** analysés en temps réel
 - ✅ **Cache intelligent** de 2 heures (TTL configurable)
 - ✅ **Nettoyage automatique** (>30 jours pour les anciennes données)
@@ -299,11 +304,13 @@ postgresql://postgres:9022@localhost:5432/financial_analyst
 - ✅ **Performance tracking** par source
 
 #### **pgAdmin 4 Quick Access**
+
 📄 **Documentation complète**: [doc/commandes_pg_sql.md](doc/commandes_pg_sql.md)
 
 Requête complète pour pgAdmin 4 disponible dans `/doc/commandes_pg_sql.md`
 
 ### 🔄 Processing Pipeline
+
 ```
 PostgreSQL Database (48h news)
         ↓
@@ -321,24 +328,27 @@ Database Storage + Display
 ## 📊 Sentiment Analysis Format
 
 ### JSON Output Structure
+
 ```json
 {
-  "sentiment": "BEARISH",           // BULLISH | BEARISH | NEUTRAL
-  "score": -45,                    // -100 to +100
-  "risk_level": "HIGH",            // LOW | MEDIUM | HIGH
-  "catalysts": [                   // Key market drivers
+  "sentiment": "BEARISH", // BULLISH | BEARISH | NEUTRAL
+  "score": -45, // -100 to +100
+  "risk_level": "HIGH", // LOW | MEDIUM | HIGH
+  "catalysts": [
+    // Key market drivers
     "Bitcoin slide threatening $80,000 break",
     "AI CapEx masking economic weakness",
     "Geopolitical tensions and regulatory pressures"
   ],
   "summary": "Market sentiment analysis summary...",
-  "data_source": "database_cache",  // Source of analysis data
-  "news_count": 22,                // Number of news items analyzed
-  "analysis_method": "robust_kilocode_v2"  // Processing method
+  "data_source": "database_cache", // Source of analysis data
+  "news_count": 22, // Number of news items analyzed
+  "analysis_method": "robust_kilocode_v2" // Processing method
 }
 ```
 
 ### Error Handling
+
 - **N/A Response** - When KiloCode fails, returns structured N/A result
 - **Database Fallback** - Continues without database if connection fails
 - **Timeout Protection** - 60-second timeout prevents hanging
@@ -349,17 +359,20 @@ Database Storage + Display
 ## 📚 Documentation
 
 ### Core Files
+
 - **`run.ts`** - Main application entry point with CLI interface
 - **`SentimentAgentFinal.ts`** - Robust sentiment analysis agent
 - **`NewsDatabaseService.ts`** - Database operations and caching
 - **`schema_simplified.sql`** - PostgreSQL schema definition
 
 ### Configuration
+
 - **`.env`** - Database connection settings
 - **`package.json`** - Dependencies and npm scripts
 - **`database.md`** - Generated buffer file for AI input inspection
 
 ### Test Scripts
+
 - **`test_final_sentiment.ts`** - Agent functionality testing
 - **`test_database_connection.ts`** - Database connectivity tests
 - **`fix_database.ts`** - Database repair utilities
@@ -369,6 +382,7 @@ Database Storage + Display
 ## 🛠 Development
 
 ### Environment Setup
+
 ```bash
 # Development mode
 npm run dev
@@ -381,12 +395,14 @@ npm test
 ```
 
 ### Adding New Features
+
 1. **Create new agent** extending `BaseAgentSimple`
 2. **Update database schema** in `schema_simplified.sql`
 3. **Add npm script** to `package.json`
 4. **Update CLI interface** in `run.ts`
 
 ### Monitoring & Debugging
+
 ```bash
 # Database statistics
 npm run status
@@ -405,6 +421,7 @@ cat database.md
 ### Common Issues
 
 **Database Connection Failed**
+
 ```bash
 # Check PostgreSQL is running
 pg_isready -h localhost -p 5432
@@ -415,6 +432,7 @@ psql -h localhost -U postgres -d financial_analyst
 ```
 
 **KiloCode Analysis Failed**
+
 ```bash
 # Check KiloCode installation
 kilocode --version
@@ -424,6 +442,7 @@ echo "Analyze market sentiment" | kilocode -m ask --auto --json
 ```
 
 **No News in Database**
+
 ```bash
 # Run news ingestion first
 npx ts-node src/backend/ingestion/NewsAggregator.ts
@@ -433,6 +452,7 @@ npm run status
 ```
 
 ### Error Messages Explained
+
 - **"Analysis not available: Database not available"** - Database connection failed
 - **"KiloCode analysis failed"** - AI service unavailable or error
 - **"No news data available in database"** - Empty database, run ingestion first
@@ -442,6 +462,7 @@ npm run status
 ## 🚀 Future Enhancements
 
 ### Planned Features
+
 - [ ] **Web Dashboard** - Real-time sentiment visualization
 - [ ] **Telegram Integration** - Automated sentiment alerts
 - [ ] **Technical Analysis** - Chart pattern recognition
@@ -450,6 +471,7 @@ npm run status
 - [ ] **Machine Learning** - Predictive sentiment models
 
 ### Scalability Improvements
+
 - [ ] **Multi-Source Aggregation** - Additional news feeds
 - [ ] **Real-Time Stream Processing** - WebSocket integration
 - [ ] **Distributed Architecture** - Microservices deployment
@@ -467,7 +489,7 @@ This project is licensed under the **ISC License** - see [LICENSE](LICENSE) for 
 
 **🚀 Production-Ready Financial Sentiment Analysis System**
 
-*Built with ❤️ using TypeScript, PostgreSQL, and KiloCode AI*
+_Built with ❤️ using TypeScript, PostgreSQL, and KiloCode AI_
 
 [⭐ Star This Repo] • [🐛 Report Issues] • [📖 Documentation] • [🤝 Contributing]
 
