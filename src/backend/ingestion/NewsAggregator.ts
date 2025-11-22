@@ -1,6 +1,8 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { FredClient } from './FredClient';
+import { FinnhubClient } from './FinnhubClient';
+import { CmeClient } from './CmeClient';
 
 export interface NewsItem {
     title: string;
@@ -8,13 +10,18 @@ export interface NewsItem {
     url: string;
     sentiment?: 'bullish' | 'bearish' | 'neutral';
     timestamp: Date;
+    content?: string;
 }
 
 export class NewsAggregator {
     private fredClient: FredClient;
+    private finnhubClient: FinnhubClient;
+    private cmeClient: CmeClient;
 
     constructor() {
         this.fredClient = new FredClient();
+        this.finnhubClient = new FinnhubClient();
+        this.cmeClient = new CmeClient();
     }
 
     /**
@@ -129,6 +136,33 @@ export class NewsAggregator {
             console.error('Error fetching FRED data:', error);
             return [];
         }
+    }
+
+    /**
+     * Récupère les news via Finnhub
+     */
+    async fetchFinnhubNews(): Promise<NewsItem[]> {
+        try {
+            const news = await this.finnhubClient.fetchMarketNews();
+            return news.map(n => ({
+                title: n.headline,
+                source: 'Finnhub',
+                url: n.url,
+                timestamp: new Date(n.datetime * 1000), // Finnhub utilise des timestamps Unix
+                sentiment: 'neutral'
+            }));
+        } catch (error) {
+            console.error('Error fetching Finnhub news:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Récupère les données CME / VIX
+     */
+    async fetchCmeData(): Promise<NewsItem[]> {
+        // [SUPPRIMÉ PAR L'UTILISATEUR] - FedWatch et VIX désactivés
+        return [];
     }
 
     /**

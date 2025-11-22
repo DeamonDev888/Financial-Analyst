@@ -91,18 +91,19 @@ class FinancialAnalystApp {
         }
 
         try {
-            const sources = ['ZeroHedge', 'CNBC', 'FinancialJuice', 'FRED'];
+            const sources = ['ZeroHedge', 'CNBC', 'FinancialJuice', 'FRED', 'Finnhub'];
             console.log(`\n📡 Fetching news from ${sources.join(', ')}...`);
 
-            const [zeroHedge, cnbc, financialJuice, fred] = await Promise.allSettled([
+            const [zeroHedge, cnbc, financialJuice, fred, finnhub] = await Promise.allSettled([
                 this.newsAggregator.fetchZeroHedgeHeadlines(),
                 this.newsAggregator.fetchCNBCMarketNews(),
                 this.newsAggregator.fetchFinancialJuice(),
-                this.newsAggregator.fetchFredEconomicData()
+                this.newsAggregator.fetchFredEconomicData(),
+                this.newsAggregator.fetchFinnhubNews()
             ]);
 
             const allNews: NewsItem[] = [];
-            const results = [zeroHedge, cnbc, financialJuice, fred];
+            const results = [zeroHedge, cnbc, financialJuice, fred, finnhub];
 
             results.forEach((result, index) => {
                 if (result.status === 'fulfilled') {

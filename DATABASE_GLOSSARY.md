@@ -2,12 +2,12 @@
 
 Ce document détaille la structure de la base de données PostgreSQL utilisée par le système. Il sert de référence pour le développement d'algorithmes et l'analyse de données.
 
-> **Généré automatiquement** par `generate_db_glossary.ts` le 2025-11-22 13 h 32 min 40 s
+> **Généré automatiquement** par `generate_db_glossary.ts` le 2025-11-22 14 h 20 min 47 s
 
 ## 🗂️ Tables Principales
 
 ### `news_items`
-Stocke les articles de news bruts et traités récupérés depuis les sources (ZeroHedge, CNBC, FinancialJuice) ainsi que les indicateurs macro-économiques (FRED). C'est la source de vérité pour les données d'entrée.
+Stocke les articles de news bruts et traités récupérés depuis les sources (ZeroHedge, CNBC, FinancialJuice, Finnhub) ainsi que les indicateurs macro-économiques (FRED) et les données de marché (CME/VIX). C'est la source de vérité pour les données d'entrée.
 
 | Colonne | Type | Description / Contraintes |
 | :--- | :--- | :--- |

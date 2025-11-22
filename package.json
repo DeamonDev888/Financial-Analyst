@@ -34,10 +34,8 @@
     "vix:debug": "ts-node src/backend/scripts/vix_debug.ts",
     "vix:exchanges": "ts-node src/backend/scripts/vix_exchanges.ts",
     "vix:discovery": "ts-node src/backend/scripts/vix_discovery.ts",
-    "vix:bitmex": "ts-node src/backend/scripts/vix_bitmex_working.ts",
-    "vix:hybrid": "ts-node src/backend/scripts/hybrid_crypto_vix.ts",
-    "vix:symbol": "ts-node src/backend/scripts/vix_only_sierra.ts",
-    "vix:crypto": "ts-node src/backend/scripts/crypto_only_sierra.ts"
+    "vix:file": "ts-node src/backend/scripts/vix_sierra_file_reader.ts",
+    "crypto:file": "ts-node src/backend/scripts/crypto_sierra_file_reader.ts"
   },
   "keywords": [
     "trading",
@@ -54,6 +52,7 @@
     "cheerio": "^1.0.0-rc.12",
     "dotenv": "^16.3.1",
     "pg": "^8.11.3",
+    "playwright": "^1.56.1",
     "puppeteer": "^21.5.0",
     "sqlite3": "^5.1.7",
     "ws": "^8.14.2",

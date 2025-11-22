@@ -10,7 +10,27 @@
 ## 📰 Database News Items (TOON Format)
 
 ```
-headlines[21]{title,src}:
+headlines[38]{title,src}:
+  Netanyahu Says Rubio Assured Him Saudi Arabia Will Not Receive F-35s On Par With Israel,ZeroHedge
+  Court Lets Government Keep $1 Million Found Buried Under Garage... Even After The Resident Was Acquitted,ZeroHedge
+  The Telefon Problem: Hacking AI With Poetry Instead Of Prompts,ZeroHedge
+  State Department Sounds Alarm: Mass Migration Is an "Existential Threat To Western Civilization",ZeroHedge
+  Chicago's Revolving Door Of Doom: 72 Prior Arrests Revealed For Train Torcher,ZeroHedge
+  VTOL Air Taxi With Military Applications Flies On Hybrid Power For First Time,ZeroHedge
+  Comer Threatens Contempt Proceedings Against Clintons If They Continue To Ignore Epstein Subpoenas,ZeroHedge
+  US Navy Racing To Recover Crashed Jet And Helicopter From South China Sea,ZeroHedge
+  Vance Blasts Critics Of Trump's Ukraine Peace Plan As "Living In A Fantasy Land",ZeroHedge
+  Lawmakers Want To Block US Purchases Of Chinese Chipmaking Equipment,ZeroHedge
+  "Brazilian Police Make 'Preventative Arrest' Of Jair Bolsonaro, Fearing He'll Flee",ZeroHedge
+  How Andrew Jackson Freed America From Central Bank Control... And Why It Matters Now,ZeroHedge
+  Trump Ends TPS For Somalis In Minnesota After Explosive Report Reveals Welfare Fraud Network Funding Overseas Terror,ZeroHedge
+  "Poor Guy... They Made Him Stay In That Castle!" - Rogan Roasts Prince Andrew's "Punishment",ZeroHedge
+  Fire Breaks Out On Container Ship Moored At Los Angeles Port,ZeroHedge
+  Parents Accuse BBC Of Harming Kids Through Pro-Trans Bias In Children's Programming,ZeroHedge
+  NATO Countries Blame Russia As Mystery Drones Keep Buzzing Key European Military Installations,ZeroHedge
+  EU-Digital Summit Exposes Europe's Innovation Crisis,ZeroHedge
+  'I Refuse To Be A Battered Wife' - Marjorie Taylor Green Abandoning House Seat,ZeroHedge
+  French General: We Must Be Ready To 'Lose Our Children' In War With Russia,ZeroHedge
   Test news for database validation,TEST
   S&P 500 Futures extend gains as bond yields retreat,FinancialJuice
   Stop The Presses – And Start Telling The Truth About Bias,ZeroHedge
@@ -29,9 +49,6 @@ headlines[21]{title,src}:
   "Bitcoin continues slide that's roiling markets, threatens to break below $80,000",CNBC
   "Stocks making the biggest moves premarket: Bitcoin stocks, Elastic, Gap and more",CNBC
   Japanese concerts in China are getting abruptly canceled as tensions simmer,CNBC
-  "Stocks making the biggest moves after hours: Intuit, Gap, Ross Stores and more",CNBC
-  Bitcoin falls to lowest level since April,CNBC
-  "Stocks making the biggest moves midday: Nvidia, Exact Sciences, Walmart, Strategy, Regeneron & more",CNBC
 ```
 
 ## 🤖 AI Analysis Instructions
@@ -62,5 +79,5 @@ RULES:
 3. No conversational text
 
 ---
-*Generated: 2025-11-22T15:39:52.614Z*
+*Generated: 2025-11-22T23:56:28.833Z*
 *Buffer: database.md*

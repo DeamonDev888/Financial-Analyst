@@ -124,6 +124,8 @@ SELECT
         WHEN source = 'CNBC' THEN '💰 TRADING'
         WHEN source = 'FinancialJuice' THEN '📈 FUTURES'
         WHEN source = 'FRED' THEN '📊 MACRO'
+        WHEN source = 'Finnhub' THEN '🏢 EARNINGS/NEWS'
+        WHEN source = 'CME_VIX' THEN '📉 VOLATILITY'
         ELSE '📰 GENERAL'
     END as source_type,
     created_at
@@ -191,7 +193,27 @@ ORDER BY created_at DESC
 LIMIT 10;
 ```
 
-### Voir les dernières news
+### Voir les news Finnhub
+
+```sql
+SELECT title, created_at
+FROM news_items
+WHERE source = 'Finnhub'
+ORDER BY created_at DESC
+LIMIT 10;
+```
+
+### Voir la Volatilité (VIX) et FedWatch
+
+```sql
+SELECT title, created_at
+FROM news_items
+WHERE source IN ('CME_VIX', 'CME_FEDWATCH')
+ORDER BY created_at DESC
+LIMIT 10;
+```
+
+### Voir les dernières news (Toutes sources)
 
 ```sql
 SELECT title, source, created_at

@@ -15,15 +15,20 @@ export class FredClient {
     private apiKey: string;
     private baseUrl = 'https://api.stlouisfed.org/fred/series/observations';
 
-    // Mapping des séries importantes
-    private seriesMap = {
+    // Mapping des séries FRED vers des noms lisibles
+    // IDs officiels FRED: https://fred.stlouisfed.org/tags/series
+    private seriesMap: { [key: string]: string } = {
         'CPIAUCSL': 'US CPI (Inflation)',
         'UNRATE': 'US Unemployment Rate',
         'FEDFUNDS': 'Federal Funds Rate',
         'GDP': 'US GDP',
+        'DGS2': '2-Year Treasury Yield',
+        'DGS5': '5-Year Treasury Yield',
         'DGS10': '10-Year Treasury Yield',
-        'VIXCLS': 'CBOE Volatility Index (VIX)',
-        'T10Y2Y': '10Y-2Y Treasury Yield Spread',
+        'DGS30': '30-Year Treasury Yield',
+        'T10Y2Y': '10Y-2Y Treasury Yield Spread', // Indicateur de récession
+        'T10Y3M': '10Y-3M Treasury Yield Spread', // Autre indicateur clé
+        // 'VIXCLS': 'CBOE Volatility Index (VIX)', // [SUPPRIMÉ PAR L'UTILISATEUR]
         'WALCL': 'Fed Balance Sheet (Liquidity)',
         'BAMLH0A0HYM2': 'High Yield Credit Spread'
     };
