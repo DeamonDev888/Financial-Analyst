@@ -1,66 +1,55 @@
-import { Pool, PoolClient, QueryResult } from 'pg';
-import { NewsItem } from '../ingestion/NewsAggregator';
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import * as dotenv from 'dotenv';
-
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.NewsDatabaseService = void 0;
+const pg_1 = require("pg");
+const fs = __importStar(require("fs/promises"));
+const path = __importStar(require("path"));
+const dotenv = __importStar(require("dotenv"));
 // Charger les variables d'environnement
 dotenv.config();
-
-export interface DatabaseNewsItem extends NewsItem {
-    id?: string;
-    content?: string;
-    author?: string;
-    scraped_at?: Date;
-    sentiment?: 'bullish' | 'bearish' | 'neutral';
-    confidence?: number;
-    keywords?: string[];
-    market_hours?: 'pre-market' | 'market' | 'after-hours' | 'extended';
-    processing_status?: 'raw' | 'processed' | 'analyzed';
-    created_at?: Date;
-    updated_at?: Date;
-}
-
-export interface SentimentAnalysisRecord {
-    id?: string;
-    analysis_date: Date;
-    overall_sentiment: 'bullish' | 'bearish' | 'neutral';
-    score: number;
-    risk_level: 'LOW' | 'MEDIUM' | 'HIGH';
-    confidence: number;
-    catalysts: string[];
-    summary: string;
-    news_count: number;
-    sources_analyzed: Record<string, number>;
-    created_at?: Date;
-}
-
-export interface NewsSource {
-    id?: string;
-    name: string;
-    base_url?: string;
-    rss_url?: string;
-    last_scraped_at?: Date;
-    last_success_at?: Date;
-    success_count: number;
-    error_count: number;
-    is_active: boolean;
-    scrape_interval_minutes: number;
-}
-
-export class NewsDatabaseService {
-    private pool: Pool;
-
-    constructor(connectionString?: string) {
+class NewsDatabaseService {
+    pool;
+    constructor(connectionString) {
         // Vérifier si nous voulons utiliser la base de données
         const useDatabase = process.env.USE_DATABASE !== 'false';
-
         if (!useDatabase) {
             console.log("🔌 Database disabled - running in memory-only mode");
-            this.pool = null as any;
+            this.pool = null;
             return;
         }
-
         try {
             // Utiliser les variables d'environnement ou une connexion par défaut
             const defaultConfig = {
@@ -73,34 +62,29 @@ export class NewsDatabaseService {
                 idleTimeoutMillis: 30000,
                 connectionTimeoutMillis: 2000,
             };
-
-            this.pool = new Pool(connectionString ? { connectionString } : defaultConfig);
+            this.pool = new pg_1.Pool(connectionString ? { connectionString } : defaultConfig);
             // L'initialisation sera faite lors de la première utilisation
-        } catch (error) {
+        }
+        catch (error) {
             console.log("⚠️ Database initialization failed - running in memory-only mode");
-            this.pool = null as any;
+            this.pool = null;
         }
     }
-
     /**
      * Parse les instructions SQL en gérant correctement les fonctions PL/pgSQL
      */
-    private parseSQLStatements(schemaSQL: string): string[] {
-        const statements: string[] = [];
+    parseSQLStatements(schemaSQL) {
+        const statements = [];
         let currentStatement = '';
         let inDollarQuote = false;
         let dollarQuoteTag = '';
-
         const lines = schemaSQL.split('\n');
-
         for (const line of lines) {
             const trimmedLine = line.trim();
-
             // Ignorer les lignes vides et les commentaires simples
             if (!trimmedLine || trimmedLine.startsWith('--')) {
                 continue;
             }
-
             // Gérer les délimiteurs de dollars pour PL/pgSQL
             if (trimmedLine.startsWith('$$') && !inDollarQuote) {
                 inDollarQuote = true;
@@ -108,12 +92,10 @@ export class NewsDatabaseService {
                 currentStatement += line + '\n';
                 continue;
             }
-
             if (inDollarQuote && trimmedLine.startsWith(dollarQuoteTag)) {
                 currentStatement += line;
                 inDollarQuote = false;
                 dollarQuoteTag = '';
-
                 // Ajouter l'instruction complète
                 if (currentStatement.trim()) {
                     statements.push(currentStatement.trim());
@@ -121,16 +103,13 @@ export class NewsDatabaseService {
                 currentStatement = '';
                 continue;
             }
-
             // Si on est dans une fonction PL/pgSQL
             if (inDollarQuote) {
                 currentStatement += line + '\n';
                 continue;
             }
-
             // Instructions régulières terminées par ;
             currentStatement += line + ' ';
-
             if (trimmedLine.endsWith(';')) {
                 const statement = currentStatement.trim();
                 if (statement && !statement.startsWith('--')) {
@@ -139,101 +118,93 @@ export class NewsDatabaseService {
                 currentStatement = '';
             }
         }
-
         // Ajouter la dernière instruction si elle existe
         const remainingStatement = currentStatement.trim();
         if (remainingStatement && !remainingStatement.startsWith('--')) {
             statements.push(remainingStatement);
         }
-
         return statements;
     }
-
     /**
      * Initialise la base de données avec le schéma
      */
-    private async initializeDatabase(): Promise<void> {
+    async initializeDatabase() {
         if (!this.pool) {
             console.log("🔌 Database disabled - skipping initialization");
             return;
         }
-
         try {
-            // Utiliser le schéma simplifié sans PL/pgSQL
-            const schemaPath = path.join(__dirname, 'schema_simplified.sql');
-            console.log(`📄 Reading simplified schema from: ${schemaPath}`);
+            const schemaPath = path.join(__dirname, 'schema.sql');
+            console.log(`📄 Reading schema from: ${schemaPath}`);
             const schemaSQL = await fs.readFile(schemaPath, 'utf-8');
-
             const client = await this.pool.connect();
-
             // Exécuter le schema en entier avec gestion d'erreurs simple
             try {
                 await client.query(schemaSQL);
                 console.log("✅ Database schema executed successfully");
-            } catch (error: any) {
+            }
+            catch (error) {
                 // Si l'exécution complète échoue, essayer instruction par instruction
                 if (error.message?.includes('already exists') || error.code === '42P07') {
                     console.log("⚡ Schema already exists, continuing...");
-                } else {
+                }
+                else {
                     console.warn("⚠️ Schema execution had issues, trying individual statements...");
-
                     const statements = schemaSQL
                         .split(';\n')
                         .map(stmt => stmt.trim())
                         .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'));
-
                     for (const statement of statements) {
                         try {
                             await client.query(statement + ';');
-                        } catch (stmtError: any) {
+                        }
+                        catch (stmtError) {
                             if (stmtError.code === '42P07' || stmtError.message?.includes('already exists')) {
                                 console.log(`⚡ Object already exists: ${statement.substring(0, 50)}...`);
-                            } else {
+                            }
+                            else {
                                 console.warn(`⚠️ Statement failed: ${statement.substring(0, 50)}...`);
                             }
                         }
                     }
                 }
             }
-
             client.release();
-            console.log("✅ Database initialized successfully with simplified schema (no PL/pgSQL)");
-        } catch (error: any) {
+            console.log("✅ Database initialized successfully");
+        }
+        catch (error) {
             console.warn(`⚠️ Database initialization failed: ${error.message || error}`);
             // Ne pas lancer d'erreur pour permettre à l'application de démarrer
         }
     }
-
     /**
      * Teste la connexion à la base de données
      */
-    async testConnection(): Promise<boolean> {
+    async testConnection() {
         if (!this.pool) {
             console.log("🔌 Database disabled - running in memory-only mode");
             return false;
         }
-
         try {
             const client = await this.pool.connect();
             const result = await client.query('SELECT NOW()');
             client.release();
             console.log("✅ Database connection successful");
             return true;
-        } catch (error) {
+        }
+        catch (error) {
             console.log("⚠️ Database connection failed - using memory-only mode");
             return false;
         }
     }
-
     /**
      * Récupère les news récentes depuis la base de données
      */
-    async getRecentNews(hoursBack: number = 24, sources?: string[]): Promise<DatabaseNewsItem[]> {
+    async getRecentNews(hoursBack = 24, sources) {
         if (!this.pool) {
             // Mode mémoire - retourne un tableau vide
             return [];
         }
-
         const client = await this.pool.connect();
         try {
             let query = `
@@ -242,52 +213,40 @@ export class NewsDatabaseService {
                 FROM news_items
                 WHERE published_at >= NOW() - INTERVAL '${hoursBack} hours'
             `;
-            const params: any[] = [];
-
+            const params = [];
             if (sources && sources.length > 0) {
                 query += ` AND source = ANY($1)`;
                 params.push(sources);
             }
-
             query += ` ORDER BY published_at DESC`;
-
             const result = await client.query(query, params.length > 0 ? params : undefined);
-
             return result.rows.map(this.mapRowToNewsItem);
-        } finally {
+        }
+        finally {
             client.release();
         }
     }
-
     /**
      * Sauvegarde les news dans la base de données
      */
-    async saveNewsItems(newsItems: NewsItem[]): Promise<number> {
+    async saveNewsItems(newsItems) {
         if (!this.pool) {
             // Mode mémoire - ne fait rien
             console.log(`💾 Memory-only mode: ${newsItems.length} news items processed but not saved`);
             return 0;
         }
-
-        if (newsItems.length === 0) return 0;
-
+        if (newsItems.length === 0)
+            return 0;
         // S'assurer que les tables existent
         await this.initializeDatabase();
-
         const client = await this.pool.connect();
         let savedCount = 0;
-
         try {
             await client.query('BEGIN');
-
             for (const item of newsItems) {
                 try {
                     // Vérifier si l'URL existe déjà
-                    const existingResult = await client.query(
-                        'SELECT id FROM news_items WHERE url = $1',
-                        [item.url]
-                    );
-
+                    const existingResult = await client.query('SELECT id FROM news_items WHERE url = $1', [item.url]);
                     if (existingResult.rows.length === 0) {
                         // Insérer la nouvelle news
                         const insertQuery = `
@@ -297,10 +256,8 @@ export class NewsDatabaseService {
                             ) VALUES ($1, $2, $3, $4, $5, 'processed', $6, $7)
                             RETURNING id
                         `;
-
                         const keywords = this.extractKeywords(item.title);
                         const marketHours = this.determineMarketHours(item.timestamp);
-
                         await client.query(insertQuery, [
                             item.title,
                             item.url,
@@ -310,40 +267,36 @@ export class NewsDatabaseService {
                             JSON.stringify(keywords),
                             marketHours
                         ]);
-
                         savedCount++;
-                    } else {
-                        // Mettre à jour la news existante si nécessaire
-                        await client.query(
-                            `UPDATE news_items
-                             SET scraped_at = $1, processing_status = 'processed'
-                             WHERE url = $2`,
-                            [new Date(), item.url]
-                        );
                     }
-                } catch (error) {
+                    else {
+                        // Mettre à jour la news existante si nécessaire
+                        await client.query(`UPDATE news_items
+                             SET scraped_at = $1, processing_status = 'processed'
+                             WHERE url = $2`, [new Date(), item.url]);
+                    }
+                }
+                catch (error) {
                     console.error(`Error saving news item: ${item.title}`, error);
                 }
             }
-
             await client.query('COMMIT');
             console.log(`💾 Saved ${savedCount} new news items to database`);
-
-        } catch (error) {
+        }
+        catch (error) {
             await client.query('ROLLBACK');
             console.error("Error saving news items:", error);
             // Ne pas lancer d'erreur pour permettre à l'application de continuer
-        } finally {
+        }
+        finally {
             client.release();
         }
-
         return savedCount;
     }
-
     /**
      * Récupère les news pour l'analyse de sentiment
      */
-    async getNewsForAnalysis(hoursBack: number = 24): Promise<DatabaseNewsItem[]> {
+    async getNewsForAnalysis(hoursBack = 24) {
         const client = await this.pool.connect();
         try {
             const result = await client.query(`
@@ -355,26 +308,23 @@ export class NewsDatabaseService {
                 ORDER BY published_at DESC
                 LIMIT 100
             `);
-
             return result.rows.map(this.mapRowToNewsItem);
-        } finally {
+        }
+        finally {
             client.release();
         }
     }
-
     /**
      * Sauvegarde une analyse de sentiment
      */
-    async saveSentimentAnalysis(analysis: any): Promise<string> {
+    async saveSentimentAnalysis(analysis) {
         if (!this.pool) {
             console.log("🔌 Database disabled - skipping sentiment analysis save");
             return '';
         }
-
         try {
             // S'assurer que les tables existent
             await this.initializeDatabase();
-
             const client = await this.pool.connect();
             const result = await client.query(`
                 INSERT INTO sentiment_analyses (
@@ -384,30 +334,29 @@ export class NewsDatabaseService {
                     CURRENT_DATE, $1, $2, $3, $4, $5, $6, $7, $8
                 ) RETURNING id
             `, [
-                analysis.sentiment?.toLowerCase(), // Convertir en minuscules pour le CHECK constraint
+                analysis.sentiment?.toUpperCase(),
                 analysis.score || 0,
-                analysis.risk_level?.toLowerCase(), // Convertir en minuscules pour le CHECK constraint
+                analysis.risk_level?.toUpperCase(),
                 0.8, // confidence par défaut
                 JSON.stringify(analysis.catalysts || []),
                 analysis.summary || '',
-                analysis.news_count || 0, // Utiliser le news_count réel
-                JSON.stringify(analysis.sources_analyzed || {})
+                0, // sera mis à jour après
+                JSON.stringify({})
             ]);
-
             client.release();
             return result.rows[0].id;
-        } catch (error) {
-            console.error("❌ Failed to save sentiment analysis - Error:", error instanceof Error ? error.message : error);
-            console.error("   Analysis data:", JSON.stringify(analysis, null, 2));
+        }
+        catch (error) {
+            console.log("⚠️ Failed to save sentiment analysis - continuing without database");
             return '';
         }
     }
-
     /**
      * Récupère la dernière analyse de sentiment
      */
-    async getLatestSentimentAnalysis(): Promise<SentimentAnalysisRecord | null> {
-        if (!this.pool) return null;
+    async getLatestSentimentAnalysis() {
+        if (!this.pool)
+            return null;
         const client = await this.pool.connect();
         try {
             const result = await client.query(`
@@ -415,22 +364,20 @@ export class NewsDatabaseService {
                 ORDER BY created_at DESC
                 LIMIT 1
             `);
-
             return result.rows.length > 0 ? result.rows[0] : null;
-        } finally {
+        }
+        finally {
             client.release();
         }
     }
-
     /**
      * Vérifie si le cache de news est à jour
      */
-    async isCacheFresh(maxAgeHours: number = 2): Promise<boolean> {
+    async isCacheFresh(maxAgeHours = 2) {
         if (!this.pool) {
             // Mode mémoire - toujours considéré comme non frais
             return false;
         }
-
         const client = await this.pool.connect();
         try {
             const result = await client.query(`
@@ -438,29 +385,24 @@ export class NewsDatabaseService {
                 FROM news_items
                 WHERE scraped_at >= NOW() - INTERVAL '${maxAgeHours} hours'
             `);
-
             return parseInt(result.rows[0].count) > 0;
-        } catch (error) {
+        }
+        catch (error) {
             console.log("⚠️ Cache freshness check failed - using memory-only mode");
             return false;
-        } finally {
+        }
+        finally {
             client.release();
         }
     }
-
     /**
      * Met à jour le statut d'une source
      */
-    async updateSourceStatus(
-        sourceName: string,
-        success: boolean,
-        error?: string
-    ): Promise<void> {
+    async updateSourceStatus(sourceName, success, error) {
         if (!this.pool) {
             console.log("🔌 Database disabled - skipping source status update");
             return;
         }
-
         try {
             const client = await this.pool.connect();
             try {
@@ -472,7 +414,8 @@ export class NewsDatabaseService {
                             success_count = success_count + 1
                         WHERE name = $1
                     `, [sourceName]);
-                } else {
+                }
+                else {
                     await client.query(`
                         UPDATE news_sources
                         SET last_scraped_at = NOW(),
@@ -480,19 +423,21 @@ export class NewsDatabaseService {
                         WHERE name = $1
                     `, [sourceName]);
                 }
-            } finally {
+            }
+            finally {
                 client.release();
             }
-        } catch (error) {
+        }
+        catch (error) {
             console.log("⚠️ Failed to update source status - continuing without database");
         }
     }
-
     /**
      * Récupère les statistiques de la base de données
      */
-    async getDatabaseStats(): Promise<any> {
-        if (!this.pool) return { error: 'Database disabled' };
+    async getDatabaseStats() {
+        if (!this.pool)
+            return { error: 'Database disabled' };
         const client = await this.pool.connect();
         try {
             const [newsStats, sourceStats, analysisStats] = await Promise.all([
@@ -517,39 +462,38 @@ export class NewsDatabaseService {
                     FROM sentiment_analyses
                 `)
             ]);
-
             return {
                 news: newsStats.rows[0],
                 sources: sourceStats.rows,
                 analyses: analysisStats.rows[0]
             };
-        } finally {
+        }
+        finally {
             client.release();
         }
     }
-
     /**
      * Nettoie les anciennes données
      */
-    async cleanupOldData(daysToKeep: number = 30): Promise<void> {
-        if (!this.pool) return;
+    async cleanupOldData(daysToKeep = 30) {
+        if (!this.pool)
+            return;
         const client = await this.pool.connect();
         try {
             const result = await client.query(`
                 DELETE FROM news_items
                 WHERE published_at < NOW() - INTERVAL '${daysToKeep} days'
             `);
-
             console.log(`🧹 Cleaned up ${result.rowCount} old news items`);
-        } finally {
+        }
+        finally {
             client.release();
         }
     }
-
     /**
      * Mappe un résultat de base de données vers un NewsItem
      */
-    private mapRowToNewsItem(row: any): DatabaseNewsItem {
+    mapRowToNewsItem(row) {
         return {
             id: row.id,
             title: row.title,
@@ -568,44 +512,45 @@ export class NewsDatabaseService {
             updated_at: row.updated_at
         };
     }
-
     /**
      * Extrait les mots-clés d'un titre (version simplifiée)
      */
-    private extractKeywords(title: string): string[] {
+    extractKeywords(title) {
         const marketKeywords = [
             'fed', 'rate', 'inflation', 'cpi', 'market', 'stock', 'trade',
             'bull', 'bear', 'rally', 'crash', 'volatile', 'economy'
         ];
-
         const titleLower = title.toLowerCase();
         return marketKeywords.filter(keyword => titleLower.includes(keyword));
     }
-
     /**
      * Détermine les heures de marché
      */
-    private determineMarketHours(timestamp: Date): 'pre-market' | 'market' | 'after-hours' | 'extended' {
+    determineMarketHours(timestamp) {
         const estTime = new Date(timestamp.toLocaleString("en-US", { timeZone: "America/New_York" }));
         const hours = estTime.getHours();
         const day = estTime.getDay();
-
-        if (day === 0 || day === 6) return 'extended';
-        if (hours >= 4 && hours < 9) return 'pre-market';
-        if (hours >= 9 && hours < 16) return 'market';
-        if (hours >= 16 && hours < 20) return 'after-hours';
+        if (day === 0 || day === 6)
+            return 'extended';
+        if (hours >= 4 && hours < 9)
+            return 'pre-market';
+        if (hours >= 9 && hours < 16)
+            return 'market';
+        if (hours >= 16 && hours < 20)
+            return 'after-hours';
         return 'extended';
     }
-
     /**
      * Ferme proprement la connexion à la base de données
      */
-    async close(): Promise<void> {
+    async close() {
         if (this.pool) {
             await this.pool.end();
             console.log("🔌 Database connection closed");
-        } else {
+        }
+        else {
             console.log("🔌 Memory-only mode - no connection to close");
         }
     }
 }
+exports.NewsDatabaseService = NewsDatabaseService;

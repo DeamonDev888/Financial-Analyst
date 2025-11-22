@@ -6,12 +6,15 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/backend/server.js",
-    "dev": "ts-node src/backend/server.ts",
+    "dev": "npx ts-node run.ts --analyze",
     "test": "jest",
+    "analyze": "npx ts-node run.ts --analyze",
+    "continuous": "npx ts-node run.ts --continuous",
+    "status": "npx ts-node run.ts --status",
+    "help": "npx ts-node run.ts --help",
     "pipeline": "ts-node src/backend/scripts/run_news_data_pipeline.ts",
     "sentiment": "ts-node src/backend/scripts/run_agent_sentiment.ts",
     "sentiment:force": "ts-node -e \"import { SentimentAgent } from './src/backend/agents/SentimentAgent'; const agent = new SentimentAgent(); agent.analyzeMarketSentiment(true).then(console.log).finally(() => agent.cleanup());\"",
-    "analyze": "ts-node src/backend/scripts/analyze_news_data.ts",
     "analyze:week": "npm run analyze week",
     "analyze:month": "npm run analyze month",
     "analyze:today": "npm run analyze today",
@@ -22,7 +25,7 @@
     "refresh:force": "npm run refresh --force",
     "refresh:cleanup": "npm run refresh --cleanup",
     "db:stats": "npm run refresh --stats",
-    "db:init": "ts-node -e \"import { NewsDatabaseService } from './src/backend/database/NewsDatabaseService'; const db = new NewsDatabaseService(); db.testConnection().then(() => console.log('Database initialized')).finally(() => db.close());\""
+    "db:init": "npx ts-node create_database.ts"
   },
   "keywords": [
     "trading",

@@ -1,4 +1,4 @@
-import { SentimentAgentFinal } from './src/backend/agents/SentimentAgentFinal';
+import { SentimentAgentFinal } from '../src/backend/agents/SentimentAgentFinal';
 
 /**
  * Test FINAL ROBUST SentimentAgentFinal

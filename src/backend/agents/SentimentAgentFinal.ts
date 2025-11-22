@@ -28,44 +28,37 @@ export class SentimentAgentFinal extends BaseAgentSimple {
             // 1. Tester la connexion à la base de données
             const dbConnected = await this.dbService.testConnection();
 
+            if (!dbConnected) {
+                console.log(`[${this.agentName}] Database not connected`);
+                return this.createNotAvailableResult('Database not available - agent uses database only');
+            }
+
+            console.log(`[${this.agentName}] Using DATABASE-ONLY mode - no scraping`);
+
+            // 2. Obtenir les données UNIQUEMENT depuis la base de données
             let allNews: NewsItem[] = [];
-            let useCache = false;
+            const cacheFresh = await this.dbService.isCacheFresh(2);
+            console.log(`[${this.agentName}] Database cache status: ${cacheFresh ? 'FRESH' : 'STALE'}`);
 
-            if (dbConnected && !forceRefresh) {
-                const cacheFresh = await this.dbService.isCacheFresh(2);
-                console.log(`[${this.agentName}] Database cache status: ${cacheFresh ? 'FRESH' : 'STALE'}`);
+            const cachedNews = await this.dbService.getNewsForAnalysis(48); // 48h de données
+            allNews = cachedNews.map(item => ({
+                title: item.title,
+                url: item.url,
+                source: item.source,
+                timestamp: item.timestamp || new Date(),
+                sentiment: item.sentiment
+            }));
 
-                if (cacheFresh) {
-                    const cachedNews = await this.dbService.getNewsForAnalysis(24);
-                    allNews = cachedNews.map(item => ({
-                        title: item.title,
-                        url: item.url,
-                        source: item.source,
-                        timestamp: item.timestamp || new Date(),
-                        sentiment: item.sentiment
-                    }));
-                    useCache = true;
-                    console.log(`[${this.agentName}] Using ${allNews.length} cached news items`);
-                }
-            }
+            console.log(`[${this.agentName}] Using ${allNews.length} news items from DATABASE`);
 
             if (allNews.length === 0) {
-                console.log(`[${this.agentName}] Scraping fresh news data...`);
-                allNews = await this.scrapeFreshNews();
-
-                if (dbConnected && allNews.length > 0) {
-                    await this.dbService.saveNewsItems(allNews);
-                }
-            }
-
-            if (allNews.length === 0) {
-                console.log(`[${this.agentName}] No news data available`);
-                return this.createNotAvailableResult('No news data from any source');
+                console.log(`[${this.agentName}] No news data available in database`);
+                return this.createNotAvailableResult('No news data in database - please run data ingestion first');
             }
 
             // 2. Analyser les sentiments avec la solution finale robuste
-            console.log(`[${this.agentName}] Analyzing ${allNews.length} news items (${useCache ? 'from cache' : 'fresh'})...`);
-            const result = await this.performRobustSentimentAnalysis(allNews, useCache);
+            console.log(`[${this.agentName}] Analyzing ${allNews.length} news items from DATABASE...`);
+            const result = await this.performRobustSentimentAnalysis(allNews, true);
 
             // 3. Sauvegarder si base de données disponible
             if (dbConnected) {
@@ -74,7 +67,7 @@ export class SentimentAgentFinal extends BaseAgentSimple {
 
             return {
                 ...result,
-                data_source: useCache ? 'database_cache' : 'fresh_scraping',
+                data_source: cacheFresh ? 'database_cache' : 'database_fresh',
                 news_count: allNews.length,
                 analysis_method: 'robust_kilocode_v2'
             };
@@ -154,20 +147,20 @@ export class SentimentAgentFinal extends BaseAgentSimple {
 
         console.log(`[${this.agentName}] Prompt length: ${prompt.length} chars`);
 
-        // Afficher le prompt complet pour débogage
-        console.log(`\n[${this.agentName}] 🔍 COMPLETE PROMPT SENT TO KILOCODE:`);
-        console.log("="*repeat(80));
+        // Réactiver l'affichage du prompt complet pour voir ce qui est envoyé
+        console.log(`\n[${this.agentName}] 🔍 KILOCODE PROMPT SENT:`);
+        console.log("=".repeat(80));
         console.log(prompt);
-        console.log("="*repeat(80));
+        console.log("=".repeat(80));
 
-        // 2. Tenter l'analyse avec plusieurs approches
+        // 2. Analyser avec KiloCode - PAS DE FALLBACK,直接 N/A
         try {
-            return await this.tryKiloCodeApproaches(prompt);
+            return await this.tryKiloCodeDirect(prompt, newsItems.length);
         } catch (kilocodeError) {
-            console.warn(`[${this.agentName}] KiloCode failed: ${kilocodeError instanceof Error ? kilocodeError.message : 'Unknown error'}`);
+            console.warn(`[${this.agentName}] KiloCode failed - returning N/A: ${kilocodeError instanceof Error ? kilocodeError.message : 'Unknown error'}`);
 
-            // 3. Fallback: Analyse simple basée sur patterns
-            return this.performPatternBasedAnalysis(newsItems);
+            // PAS DE FALLBACK - Retourner N/A comme demandé
+            return this.createNotAvailableResult(`KiloCode analysis failed: ${kilocodeError instanceof Error ? kilocodeError.message : 'Unknown error'}`);
         }
     }
 
@@ -215,44 +208,38 @@ RULES:
     }
 
     /**
-     * Essaie plusieurs approches KiloCode avec gestion d'erreur robuste
+     * KiloCode DIRECT - Pas de fallback, N/A si échoue
      */
-    private async tryKiloCodeApproaches(prompt: string): Promise<any> {
-        const attempts = [
-            () => this.tryKiloCodeWithFile(prompt),
-            () => this.tryKiloCodeInline(prompt),
-            () => this.tryKiloCodeWithEcho(prompt)
-        ];
+    private async tryKiloCodeDirect(prompt: string, newsCount: number): Promise<any> {
+        // Confirmer explicitement que les données viennent de la base de données
+        console.log(`\n[${this.agentName}] 📊 DATABASE-ONLY PROCESS:`);
+        console.log(`   ├─ Extracted ${newsCount} news items from PostgreSQL`);
+        console.log(`   ├─ Creating database.md buffer with TOON format`);
+        console.log(`   └─ No web scraping - pure database analysis`);
 
-        for (let i = 0; i < attempts.length; i++) {
-            try {
-                console.log(`[${this.agentName}] Trying KiloCode approach ${i + 1}/${attempts.length}...`);
-                const result = await attempts[i]();
-                console.log(`[${this.agentName}] ✅ Approach ${i + 1} successful!`);
-                return result;
-            } catch (error) {
-                console.warn(`[${this.agentName}] Approach ${i + 1} failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-                if (i === attempts.length - 1) throw error;
-            }
-        }
-
-        throw new Error('All KiloCode approaches failed');
+        console.log(`[${this.agentName}] 🚀 Executing KiloCode analysis...`);
+        const result = await this.tryKiloCodeWithFile(prompt);
+        console.log(`[${this.agentName}] ✅ KiloCode analysis successful!`);
+        return result;
     }
 
     /**
-     * Approche 1: Fichier temporaire (la plus fiable)
+     * Approche 1: Fichier database.md buffer avec format TOON (le plus propre)
      */
     private async tryKiloCodeWithFile(prompt: string): Promise<any> {
-        const tempPath = `temp_analysis_${Date.now()}.txt`;
-        await fs.writeFile(tempPath, prompt, 'utf-8');
+        const bufferPath = `database.md`;
+
+        // Créer le fichier buffer avec format Markdown + TOON
+        const toonContent = this.createDatabaseBufferMarkdown(prompt);
+        await fs.writeFile(bufferPath, toonContent, 'utf-8');
 
         try {
             // Utiliser la commande Windows appropriée (type sur Windows, cat sur Linux/Mac)
             const isWindows = process.platform === 'win32';
-            const readCommand = isWindows ? `type "${tempPath}"` : `cat "${tempPath}"`;
+            const readCommand = isWindows ? `type "${bufferPath}"` : `cat "${bufferPath}"`;
             const command = `${readCommand} | kilocode -m ask --auto --json`;
 
-            console.log(`[${this.agentName}] Using command: ${readCommand} | kilocode`);
+            console.log(`[${this.agentName}] Using DATABASE.MD buffer: ${readCommand} | kilocode`);
 
             const { stdout } = await this.execAsync(command, {
                 timeout: 90000,
@@ -261,41 +248,66 @@ RULES:
 
             return this.parseRobustOutput(stdout);
         } finally {
-            await fs.unlink(tempPath).catch(() => {});
+            // Garder le fichier pour inspection (décommenter pour supprimer)
+            // await fs.unlink(bufferPath).catch(() => {});
+            console.log(`[${this.agentName}] 📄 Database buffer kept for inspection: ${bufferPath}`);
         }
     }
 
     /**
-     * Approche 2: En ligne de commande (limite de taille)
+     * Crée le fichier buffer database.md avec format Markdown + TOON
      */
-    private async tryKiloCodeInline(prompt: string): Promise<any> {
-        if (prompt.length > 5000) {
-            throw new Error('Prompt too long for inline method');
-        }
+    private createDatabaseBufferMarkdown(prompt: string): string {
+        // Extraire la section DATA du prompt pour l'afficher dans le buffer
+        const dataMatch = prompt.match(/DATA:\n([\s\S]*?)RULES:/);
+        const toonData = dataMatch ? dataMatch[1].trim() : 'No data found';
 
-        const escapedPrompt = prompt.replace(/"/g, '\\"');
-        const command = `kilocode -m ask --auto --json "${escapedPrompt}"`;
+        return `
+# Database Buffer - Market Sentiment Analysis
 
-        const { stdout } = await this.execAsync(command, {
-            timeout: 60000,
-            cwd: process.cwd()
-        });
+## 📊 Data Source: PostgreSQL Database
+- **Extraction**: 22 news items from database
+- **Mode**: DATABASE-ONLY (no web scraping)
+- **Cache Status**: FRESH (within 2 hours)
+- **Processing**: TOON format for KiloCode AI
 
-        return this.parseRobustOutput(stdout);
-    }
+## 📰 Database News Items (TOON Format)
 
-    /**
-     * Approche 3: Via echo (alternative)
-     */
-    private async tryKiloCodeWithEcho(prompt: string): Promise<any> {
-        const command = `echo '${prompt.replace(/'/g, "\\'")}' | kilocode -m ask --auto --json`;
+\`\`\`
+${toonData}
+\`\`\`
 
-        const { stdout } = await this.execAsync(command, {
-            timeout: 60000,
-            cwd: process.cwd()
-        });
+## 🤖 AI Analysis Instructions
 
-        return this.parseRobustOutput(stdout);
+You are an expert Market Sentiment Analyst for ES Futures (S&P 500).
+
+TASK: Analyze the TOON data above and return valid JSON.
+
+CRITICAL:
+- Output ONLY the JSON object
+- No markdown, no explanations
+- Must be parseable by JSON.parse()
+
+REQUIRED JSON STRUCTURE:
+\`\`\`json
+{
+  "sentiment": "BULLISH" | "BEARISH" | "NEUTRAL",
+  "score": number between -100 and 100,
+  "catalysts": ["string", "string"],
+  "risk_level": "LOW" | "MEDIUM" | "HIGH",
+  "summary": "Brief explanation"
+}
+\`\`\`
+
+RULES:
+1. Analyze all headlines from database
+2. Return ONLY JSON
+3. No conversational text
+
+---
+*Generated: ${new Date().toISOString()}*
+*Buffer: database.md*
+`;
     }
 
     /**
@@ -414,74 +426,5 @@ RULES:
                 ? override.summary
                 : 'No analysis available'
         };
-    }
-
-    /**
-     * Analyse basée sur les patterns quand KiloCode échoue complètement
-     */
-    private performPatternBasedAnalysis(newsItems: NewsItem[]): any {
-        console.log(`[${this.agentName}] Performing pattern-based analysis fallback...`);
-
-        // Compter les mots-clés positifs et négatifs
-        let bullishCount = 0;
-        let bearishCount = 0;
-        let neutralCount = 0;
-        const catalysts: string[] = [];
-
-        const bullishKeywords = ['rally', 'bullish', 'gains', 'positive', 'growth', 'rises', 'jumps', 'surges', 'recovery'];
-        const bearishKeywords = ['fall', 'decline', 'bearish', 'drop', 'crash', 'slump', 'plunge', 'declines', 'losses', 'negative'];
-        const neutralKeywords = ['stable', 'flat', 'mixed', 'uncertain', 'caution', 'wait', 'holds', 'steady'];
-
-        newsItems.forEach(item => {
-            const title = item.title.toLowerCase();
-
-            if (bullishKeywords.some(k => title.includes(k))) {
-                bullishCount++;
-            } else if (bearishKeywords.some(k => title.includes(k))) {
-                bearishCount++;
-            } else if (neutralKeywords.some(k => title.includes(k))) {
-                neutralCount++;
-            }
-
-            // Extraire les catalysts évidents
-            if (title.includes('fed') && (title.includes('rate') || title.includes('cut'))) {
-                catalysts.push('Fed Rate Policy');
-            }
-            if (title.includes('bitcoin') || title.includes('crypto')) {
-                catalysts.push('Cryptocurrency');
-            }
-            if (title.includes('ai') && (title.includes('spending') || title.includes('investment'))) {
-                catalysts.push('AI Market Activity');
-            }
-        });
-
-        // Déterminer le sentiment basé sur les comptes
-        let sentiment = 'NEUTRAL';
-        let score = 0;
-
-        if (bullishCount > bearishCount && bullishCount > neutralCount) {
-            sentiment = 'BULLISH';
-            score = Math.min(50, (bullishCount / newsItems.length) * 100);
-        } else if (bearishCount > bullishCount && bearishCount > neutralCount) {
-            sentiment = 'BEARISH';
-            score = Math.max(-50, -(bearishCount / newsItems.length) * 100);
-        } else {
-            sentiment = 'NEUTRAL';
-            score = 0;
-        }
-
-        // Déterminer le risque basé sur la volatilité
-        const volatility = (bullishCount + bearishCount) / newsItems.length;
-        let riskLevel = 'MEDIUM';
-        if (volatility > 0.7) riskLevel = 'HIGH';
-        else if (volatility < 0.3) riskLevel = 'LOW';
-
-        return this.createValidatedResult({
-            sentiment,
-            score,
-            risk_level: riskLevel,
-            catalysts: [...new Set(catalysts)].slice(0, 5),
-            summary: `Pattern-based analysis: ${bullishCount} bullish, ${bearishCount} bearish, ${neutralCount} neutral headlines analyzed. Sentiment determined as ${sentiment} with ${Math.abs(score)} confidence score.`
-        });
     }
 }

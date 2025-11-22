@@ -1,5 +1,5 @@
--- Financial Analyst Database Schema
--- Schema pour le cache des news et analyse de sentiment
+-- Financial Analyst Database Schema - Simplified Version
+-- Schema simplifié sans PL/pgSQL pour éviter les warnings
 
 -- Extension pour UUID si nécessaire
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -24,12 +24,15 @@ CREATE TABLE IF NOT EXISTS news_items (
 );
 
 -- Table pour stocker les analyses de sentiment
-CREATE TABLE IF NOT EXISTS sentiment_analyses (
+-- Drop and recreate sentiment_analyses to fix constraint issues
+DROP TABLE IF EXISTS sentiment_analyses CASCADE;
+
+CREATE TABLE sentiment_analyses (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     analysis_date DATE NOT NULL,
     overall_sentiment VARCHAR(20) CHECK (overall_sentiment IN ('bullish', 'bearish', 'neutral')),
     score INTEGER CHECK (score >= -100 AND score <= 100),
-    risk_level VARCHAR(20) CHECK (risk_level IN ('LOW', 'MEDIUM', 'HIGH')),
+    risk_level VARCHAR(20) CHECK (risk_level IN ('low', 'medium', 'high')),
     confidence DECIMAL(3,2) CHECK (confidence >= 0 AND confidence <= 1),
     catalysts JSONB DEFAULT '[]',
     summary TEXT,
@@ -74,6 +77,7 @@ CREATE INDEX IF NOT EXISTS idx_news_items_market_hours ON news_items(market_hour
 CREATE INDEX IF NOT EXISTS idx_news_items_keywords ON news_items USING GIN(keywords);
 CREATE INDEX IF NOT EXISTS idx_news_items_processing_status ON news_items(processing_status);
 CREATE INDEX IF NOT EXISTS idx_news_items_scraped_at ON news_items(scraped_at DESC);
+CREATE INDEX IF NOT EXISTS idx_news_items_created_at ON news_items(created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_sentiment_analyses_analysis_date ON sentiment_analyses(analysis_date DESC);
 CREATE INDEX IF NOT EXISTS idx_sentiment_analyses_overall_sentiment ON sentiment_analyses(overall_sentiment);
@@ -84,21 +88,6 @@ CREATE INDEX IF NOT EXISTS idx_news_sources_is_active ON news_sources(is_active)
 CREATE INDEX IF NOT EXISTS idx_scraping_sessions_started_at ON scraping_sessions(started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_scraping_sessions_status ON scraping_sessions(status);
 
--- Trigger pour mettre à jour updated_at
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
-
-CREATE TRIGGER update_news_items_updated_at BEFORE UPDATE ON news_items
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_news_sources_updated_at BEFORE UPDATE ON news_sources
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
 -- Insertion des sources par défaut
 INSERT INTO news_sources (name, rss_url, scrape_interval_minutes) VALUES
 ('ZeroHedge', 'http://feeds.feedburner.com/zerohedge/feed', 60),
@@ -106,7 +95,7 @@ INSERT INTO news_sources (name, rss_url, scrape_interval_minutes) VALUES
 ('FinancialJuice', NULL, 120)
 ON CONFLICT (name) DO NOTHING;
 
--- Vues pour les requêtes communes
+-- Vues simplifiées pour les requêtes communes (sans PL/pgSQL)
 CREATE OR REPLACE VIEW latest_news AS
 SELECT
     id,
@@ -114,6 +103,7 @@ SELECT
     source,
     url,
     published_at,
+    scraped_at,
     sentiment,
     confidence,
     keywords,
@@ -156,75 +146,35 @@ SELECT
 FROM news_sources ns
 ORDER BY success_rate DESC;
 
--- Fonctions utilitaires
-CREATE OR REPLACE FUNCTION get_news_for_analysis(
-    p_hours_back INTEGER DEFAULT 24,
-    p_sources TEXT[] DEFAULT NULL
-) RETURNS TABLE (
-    id UUID,
-    title VARCHAR(1000),
-    source VARCHAR(100),
-    url VARCHAR(2048),
-    published_at TIMESTAMP WITH TIME ZONE,
-    sentiment VARCHAR(20),
-    keywords JSONB,
-    market_hours VARCHAR(20)
-) AS $$
-BEGIN
-    RETURN QUERY
-    SELECT
-        n.id,
-        n.title,
-        n.source,
-        n.url,
-        n.published_at,
-        n.sentiment,
-        n.keywords,
-        n.market_hours
-    FROM news_items n
-    WHERE n.published_at >= NOW() - MAKE_INTERVAL(hours => p_hours_back)
-      AND (p_sources IS NULL OR n.source = ANY(p_sources))
-      AND n.processing_status = 'processed'
-    ORDER BY n.published_at DESC;
-END;
-$$ LANGUAGE plpgsql;
+-- Vues utilitaires simples pour les analyses
+CREATE OR REPLACE VIEW news_for_analysis AS
+SELECT
+    id,
+    title,
+    source,
+    url,
+    published_at,
+    scraped_at,
+    sentiment,
+    keywords,
+    market_hours
+FROM news_items
+WHERE published_at >= NOW() - INTERVAL '48 hours'
+  AND processing_status = 'processed'
+ORDER BY published_at DESC;
 
-CREATE OR REPLACE FUNCTION refresh_news_cache(
-    p_max_age_hours INTEGER DEFAULT 2
-) RETURNS TABLE (
-    source_name VARCHAR(100),
-    status VARCHAR(20),
-    news_count BIGINT,
-    message TEXT
-) AS $$
-DECLARE
-    v_session_id UUID;
-BEGIN
-    -- Créer une nouvelle session de scraping
-    v_session_id := uuid_generate_v4();
-    INSERT INTO scraping_sessions (id, status) VALUES (v_session_id, 'running');
-
-    -- Pour chaque source active, vérifier si besoin de rafraîchir
-    RETURN QUERY
-    WITH sources_to_refresh AS (
-        SELECT ns.name, ns.id as source_id
-        FROM news_sources ns
-        WHERE ns.is_active = TRUE
-          AND (
-            ns.last_scraped_at IS NULL
-            OR ns.last_scraped_at < NOW() - MAKE_INTERVAL(hours => p_max_age_hours)
-          )
-    )
-    SELECT
-        str.name as source_name,
-        'pending'::VARCHAR(20) as status,
-        0::BIGINT as news_count,
-        'Scheduled for refresh'::TEXT as message
-    FROM sources_to_refresh str;
-
-    -- Mettre à jour la session
-    UPDATE scraping_sessions
-    SET completed_at = NOW(), status = 'completed'
-    WHERE id = v_session_id;
-END;
-$$ LANGUAGE plpgsql;
+CREATE OR REPLACE VIEW recent_sentiment_analyses AS
+SELECT
+    id,
+    analysis_date,
+    overall_sentiment,
+    score,
+    risk_level,
+    confidence,
+    catalysts,
+    summary,
+    news_count,
+    created_at
+FROM sentiment_analyses
+WHERE analysis_date >= NOW() - INTERVAL '30 days'
+ORDER BY analysis_date DESC;

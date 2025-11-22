@@ -1,9 +1,9 @@
 <div align="center">
   <img src="assets/logo.png" alt="Financial Analyst Logo" width="250" style="border-radius: 15px; box-shadow: 0 0 20px rgba(0, 122, 204, 0.5);">
 
-  # 🚀 Financial Analyst & ES Futures Trading System
+  # 🚀 Financial Analyst - ES Futures Trading System
 
-  **Systeme Complet d'Analyse de Marche avec IA, Cache Intelligent et Base de Donnees Avancee**
+  **Robust Market Sentiment Analysis with KiloCode AI & PostgreSQL Database**
 
   [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
   [![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
@@ -12,294 +12,393 @@
   [![License: ISC](https://img.shields.io/badge/License-ISC-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/ISC)
 
   <p align="center">
-    <a href="#-demarrage-rapide">Demarrage</a> •
-    <a href="#-architecture-complete">Architecture</a> •
-    <a href="#-agents-intelligents">Agents</a> •
-    <a href="#-systeme-de-cache">Cache</a> •
-    <a href="#bibliotheque-financiere">Ressources</a> •
-    <a href="#-documentation-complete">Documentation</a>
+    <a href="#-quick-start">Quick Start</a> •
+    <a href="#-features">Features</a> •
+    <a href="#-installation">Installation</a> •
+    <a href="#-usage">Usage</a> •
+    <a href="#-architecture">Architecture</a> •
+    <a href="#documentation">Documentation</a>
   </p>
 </div>
 
 ---
 
-## 🚀 Demarrage Rapide
+## 🎯 Quick Start
 
-### Installation & Configuration
+### Prerequisites
+- **Node.js** 18+
+- **PostgreSQL** 13+
+- **KiloCode AI** (x-ai/grok-code-fast-1)
 
+### One-Command Setup
 ```bash
-# Cloner le projet
-git clone https://github.com/Terlou06/Financial-Analyst.git
-cd Financial-Analyst
-
-# Installation des dependances
+# Clone & Install
+git clone <repo-url>
+cd financial-analyst
 npm install
 
-# Configuration de la base de donnees
+# Configure Database
 cp .env.example .env
-# Editer .env avec vos identifiants PostgreSQL
+# Edit .env with your PostgreSQL credentials:
+# DB_HOST=localhost
+# DB_PORT=5432
+# DB_USER=postgres
+# DB_PASSWORD=your_password
+# DB_NAME=financial_analyst
 
-# Initialisation de la base de donnees
-npm run db:init
+# Initialize Database
+npx ts-node create_database.ts
 
-# Lancer la premiere analyse (avec cache)
-npm run sentiment
+# Run First Analysis
+npm run analyze
 ```
 
-### Commandes Essentielles
+---
+
+## 🚀 Features
+
+### ✅ **Core Capabilities**
+- **🤖 KiloCode AI Integration** - Advanced sentiment analysis using x-ai models
+- **📊 Database-Driven Analysis** - 22+ news items from PostgreSQL database
+- **🚫 No Fallback Policy** - Returns "N/A" when analysis fails (no simulated data)
+- **⚡ Real-Time Processing** - 3-5 second analysis time with cached data
+- **📈 ES Futures Focus** - Optimized for S&P 500 futures sentiment analysis
+
+### 🎛️ **Operating Modes**
+- **Single Analysis** - One-time sentiment analysis
+- **Continuous Monitoring** - Automated analysis every 5 minutes
+- **Database Status** - View cache status and news statistics
+- **Help & Documentation** - Built-in usage instructions
+
+### 📰 **News Sources**
+- **ZeroHedge** - Alternative market sentiment & macro news
+- **CNBC** - Traditional financial news & ES Futures coverage
+- **FinancialJuice** - Real-time market headlines
+- **Smart Caching** - 2-hour TTL with automatic refresh
+
+---
+
+## 📦 Installation
+
+### 1. Clone Repository
+```bash
+git clone https://github.com/Terlou06/Financial-Analyst.git
+cd financial-analyst
+```
+
+### 2. Install Dependencies
+```bash
+npm install
+```
+
+### 3. Database Setup
+```bash
+# Create .env file
+cp .env.example .env
+
+# Edit .env with your PostgreSQL settings:
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=9022
+DB_NAME=financial_analyst
+
+# Create database
+npx ts-node create_database.ts
+```
+
+### 4. Verify Installation
+```bash
+# Test database connection
+npm run status
+
+# Run first analysis
+npm run analyze
+```
+
+---
+
+## 🎮 Usage
+
+### Main Application (run.ts)
+The primary entry point with multiple operating modes:
 
 ```bash
-# Analyse de sentiment avec cache intelligent
-npm run sentiment           # Utilise le cache si frais
-npm run sentiment:force     # Force le scraping
+# Single sentiment analysis
+npm run analyze
+# or
+npx ts-node run.ts --analyze
 
-# Gestion du cache
-npm run refresh             # Rafraichissement intelligent
-npm run refresh:force       # Force le rafraichissement
-npm run db:stats            # Statistiques de la base de donnees
+# Continuous monitoring (5-min intervals)
+npm run continuous
+# or
+npx ts-node run.ts --continuous
 
-# Analyse de donnees
-npm run analyze:week        # Analyse des 7 derniers jours
-npm run analyze:month       # Analyse du mois
-npm run export:csv          # Exporter en CSV
+# Database status
+npm run status
+# or
+npx ts-node run.ts --status
+
+# Help
+npx ts-node run.ts --help
 ```
 
----
-
-## 📈 Performances & Avantages
-
-### ⚡ Cache Intelligent (80%+ d'amelioration)
-- **Temps de reponse** : 3-5s (cache) vs 30s (scraping)
-- **Zero requete HTTP** quand le cache est frais
-- **Historique** des analyses et tendances
-- **Mode fallback** si base indisponible
-
-### 🧠 Analyse de Sentiment Avancee
-- **3 sources** : ZeroHedge, CNBC, FinancialJuice
-- **IA KiloCode** pour l'analyse de sentiment
-- **Classification** : Bullish/Bearish/Neutral avec score
-- **Catalysts** et niveau de risque
-
-### 📊 Base de Donnees Complete
-- **PostgreSQL** optimise avec indexes
-- **Nettoyage** automatique des anciennes donnees
-- **Monitoring** de sante des sources
-- **Export** CSV pour analyses externes
-
----
-
-## 🏗 Architecture Complete
-
-Ce projet combine une bibliotheque financiere complete avec un systeme d'analyse de marche intelligent, utilisant un cache avance pour des performances optimales.
-
-## 🤖 Agent d'Analyse ES Futures (Automated Analyst)
-
-L'objectif principal est de developper un agent autonome capable d'agreger des donnees economiques en temps reel, d'analyser le sentiment du marche et de generer des rapports de trading structures avec des predictions de prix.
-
-## 🏗 Architecture & Tech Stack
-
-### 🧠 Agents Intelligents
-*   **SentimentAgent** : Analyse de sentiment avec cache intelligent
-*   **BaseAgent** : Infrastructure commune pour tous les agents
-*   **IA KiloCode** : Modele `x-ai/grok-code-fast-1` pour l'analyse
-
-### 💾 Systeme de Cache Avance
-*   **PostgreSQL** : Base de donnees optimisee avec indexes
-*   **Cache TTL** : 2 heures par defaut, configurable
-*   **Mode Fallback** : Fonctionne sans base de donnees
-*   **Monitoring** : Sante des sources et erreurs
-
-### 📡 Sources de Donnees & APIs
-
-#### 📰 News & Sentiment (avec cache)
-1.  **ZeroHedge** (RSS Feed)
-    *   *Sentiment de marche alternatif*
-    *   *News macro-economiques en temps reel*
-    *   *TTL Cache* : 60 minutes
-
-2.  **CNBC** (RSS Feed)
-    *   *News financieres traditionnelles*
-    *   *Couverture ES Futures*
-    *   *TTL Cache* : 60 minutes
-
-3.  **FinancialJuice** (Simulation)
-    *   *News de marche synthetiques*
-    *   *Donnees de test et demo*
-    *   *TTL Cache* : 120 minutes
-
-#### 📊 Donnees Economiques (prevu)
-*   **FRED API** : PIB, Inflation, Emploi, Taux d'interet
-*   **BLS API** : CPI, NFP, Chomage
-*   **FMP API** : Courbe des taux, Treasury Yields
-*   **AlphaVantage** : Earnings, Estimations EPS
-
-### 🚀 Pipeline de Traitement
-```
-Sources News → Cache DB → SentimentAgent → IA KiloCode → Analyse JSON → Dashboard
-     ↓              ↓              ↓              ↓
-  Scraping     PostgreSQL     Classification  Predictions
-  + Cache       Optimise      par heure       de prix
-```
-
-### 📋 Format d'Analyse de Sentiment
-
-L'agent genere une analyse structuree en JSON :
-
+### Package.json Scripts
 ```json
 {
-  "sentiment": "BULLISH",
-  "score": 75,
-  "catalysts": [
-    "Fed Rate Cut Announcement",
-    "Strong Tech Earnings",
-    "Declining Inflation Data"
-  ],
-  "risk_level": "LOW",
-  "summary": "Market sentiment is strongly bullish due to dovish Fed signals and robust corporate earnings.",
-  "data_source": "database_cache",
-  "news_count": 25
+  "scripts": {
+    "analyze": "npx ts-node run.ts --analyze",
+    "continuous": "npx ts-node run.ts --continuous",
+    "status": "npx ts-node run.ts --status",
+    "dev": "npx ts-node run.ts --analyze",
+    "db:init": "npx ts-node create_database.ts"
+  }
 }
 ```
 
----
-
-## 💾 Systeme de Cache Intelligent
-
-### 🎯 Objectif du Cache
-- **⚡ Performance** : Reduction du temps de 30s → 3-5s (80%+)
-- **🌐 Economie** : Zero requete HTTP sur cache frais
-- **📊 Historique** : Conservation des tendances temporelles
-- **🛡️ Fiabilite** : Mode fallback si base indisponible
-
-### 🔄 Logique de Cache
+### Example Output
 ```
-Cache FRESH (< 2h)  →  Utiliser donnees existantes (3-5s)
-Cache STALE (≥ 2h)  →  Scraper + mise a jour cache (10-15s)
-Pas de cache/BDD    →  Scrape systematique (20-30s)
+🚀 Initializing Financial Analyst Application...
+============================================================
+✅ Database connection successful
+
+📊 Database Status:
+   ├─ News items: 22
+   ├─ Cache: FRESH
+   └─ Time range: Last 48 hours
+
+🔍 Starting Market Sentiment Analysis...
+============================================================
+✅ ANALYSIS COMPLETED SUCCESSFULLY!
+
+📈 MARKET SENTIMENT RESULT:
+{
+  "sentiment": "BEARISH",
+  "score": -45,
+  "risk_level": "HIGH",
+  "catalysts": [
+    "Bitcoin slide threatening $80,000 break",
+    "AI CapEx masking economic weakness",
+    "Geopolitical tensions and regulatory pressures"
+  ],
+  "summary": "Mixed headlines with strong bearish signals...",
+  "data_source": "database_cache",
+  "news_count": 22,
+  "analysis_method": "robust_kilocode_v2"
+}
+
+🎯 KEY INSIGHTS:
+   Sentiment: BEARISH (-45/100)
+   Risk Level: HIGH
+   Catalysts: Bitcoin slide threatening $80,000 break, AI CapEx masking economic weakness...
+   Summary: Mixed headlines with strong bearish signals from Bitcoin declines...
+   News Count: 22 items
+   Data Source: database_cache
+   Analysis Method: robust_kilocode_v2
 ```
 
-### 📊 Base de Donnees PostgreSQL
-- **news_items** : Nouvelles brutes et traitees
-- **sentiment_analyses** : Historique des analyses
-- **news_sources** : Sante et performance des sources
-- **Vues optimisees** : latest_news, daily_news_summary
+---
 
-### 🧹 Gestion Automatique
-- **Nettoyage** : Auto-suppression > 30 jours
-- **Monitoring** : Sante des sources en temps reel
-- **Indexes** : Optimises pour les requetes frequentes
+## 🏗 Architecture
+
+### 🤖 SentimentAgentFinal (Core Agent)
+```
+SentimentAgentFinal
+├── Database-Only Mode
+│   ├── Extracts news from PostgreSQL (48h window)
+│   ├── Uses TOON format for KiloCode processing
+│   └── No web scraping - pure database analysis
+├── KiloCode Integration
+│   ├── Sends structured prompt with 22+ news items
+│   ├── Returns JSON with sentiment/score/catalysts
+│   └── No fallbacks - returns N/A on failure
+└── Database Buffer
+    ├── Creates database.md file for inspection
+    ├── Maintains transparency of AI input
+    └── Preserves analysis workflow
+```
+
+### 💾 Database Schema
+```sql
+-- Core Tables
+news_items              -- Raw and processed news (22+ items)
+sentiment_analyses      -- Analysis history with results
+news_sources           -- Source health and monitoring
+scraping_sessions     -- Data collection sessions
+
+-- Key Features
+✅ 2-hour intelligent caching
+✅ Automatic cleanup (>30 days)
+✅ Performance-optimized indexes
+✅ Health monitoring & statistics
+```
+
+### 🔄 Processing Pipeline
+```
+PostgreSQL Database (48h news)
+        ↓
+SentimentAgentFinal (TOON format)
+        ↓
+KiloCode AI Analysis
+        ↓
+Structured JSON Result
+        ↓
+Database Storage + Display
+```
 
 ---
 
-## 📚 Bibliotheque Financiere (LIVRE FINANCE)
+## 📊 Sentiment Analysis Format
 
-Une collection exceptionnelle de **250+ livres** financiers organises par specialites pour former des traders complets.
+### JSON Output Structure
+```json
+{
+  "sentiment": "BEARISH",           // BULLISH | BEARISH | NEUTRAL
+  "score": -45,                    // -100 to +100
+  "risk_level": "HIGH",            // LOW | MEDIUM | HIGH
+  "catalysts": [                   // Key market drivers
+    "Bitcoin slide threatening $80,000 break",
+    "AI CapEx masking economic weakness",
+    "Geopolitical tensions and regulatory pressures"
+  ],
+  "summary": "Market sentiment analysis summary...",
+  "data_source": "database_cache",  // Source of analysis data
+  "news_count": 22,                // Number of news items analyzed
+  "analysis_method": "robust_kilocode_v2"  // Processing method
+}
+```
 
-### 📁 Collections Disponibles
-
-#### 💼 **Day Trading Collection** (40+ livres)
-- *18 Trading Champions Share Their Keys To Top Trading Profits*
-- *Trading in the Zone* par Mark Douglas
-- *A Complete Guide to Day Trading*
-- *Master Traders: Strategies for Superior Returns*
-- Et bien plus...
-
-#### 📈 **Technical Analysis Collection** (40+ livres)
-- *Technical Analysis of the Financial Markets* par John J. Murphy
-- *Bollinger on Bollinger Bands* par John Bollinger
-- *Mastering Elliott Wave Principle*
-- *Candlestick Charting Techniques*
-- *Point and Figure Charting*
-
-#### 🏦 **Long Term Investing Collection** (40+ livres)
-- *The Intelligent Investor* par Benjamin Graham
-- *One Up On Wall Street* par Peter Lynch
-- *The Little Book of Common Sense Investing* par John Bogle
-- *Buffett: The Making of an American Capitalist*
-- *Big Debt Crises* par Ray Dalio
-
-#### ⚡ **Options Trading Collection** (25+ livres)
-- *Option Volatility and Pricing* par Sheldon Natenberg
-- *Options as a Strategic Investment* par Lawrence McMillan
-- *Trading Options Greeks* par Dan Passarelli
-- *The Options Course* par George Fontanills
-
-#### 💰 **Futures and Forex Collection** (20+ livres)
-- *Getting Started in Futures*
-- *Successful Foreign Exchange Dealing*
-- *Currency Trading Strategies*
-- *Digital Gold: Bitcoin and Cryptocurrency*
-
-#### 🛡️ **Risk Management Collection** (10+ livres)
-- *Fundamentals of Risk Management*
-- *Financial Risk Management*
-- *Stock Market Math: Essential Formulas*
-
-#### 🎯 **Autres Collections Specialisees**
-- **Bull and Bear Market Collection** (15+ livres)
-- **Hedge Fund Collection** (10+ livres)
-- **Stock Market 101 Collection** (50+ livres)
-- **Fundamental Analysis Collection** (5+ livres)
-- **Volatility & VIX Collection** (8+ livres)
-- **Margin Trading Collection** (1+ livre)
-
-### 🎓 Parcours d'Apprentissage Recommande
-
-1. **Debutant** → Stock Market 101 → Understanding Wall Street
-2. **Intermediaire** → Technical Analysis → Risk Management
-3. **Avance** → Options Trading → Futures & Forex
-4. **Expert** → Hedge Fund Strategies → Long Term Investing
+### Error Handling
+- **N/A Response** - When KiloCode fails, returns structured N/A result
+- **Database Fallback** - Continues without database if connection fails
+- **Timeout Protection** - 60-second timeout prevents hanging
+- **Graceful Degradation** - Always provides a response, never crashes
 
 ---
 
-## 📚 Documentation Complete
+## 📚 Documentation
 
-### 📖 Guides Techniques
-- [**DATABASE_CACHE_SYSTEM.md**](docs/DATABASE_CACHE_SYSTEM.md) - Systeme de cache intelligent
-- [**NEWS_DATA_SYSTEM.md**](docs/NEWS_DATA_SYSTEM.md) - Traitement des donnees de marche
-- [**SENTIMENT_AGENT.md**](docs/SENTIMENT_AGENT.md) - Documentation complete du SentimentAgent
+### Core Files
+- **`run.ts`** - Main application entry point with CLI interface
+- **`SentimentAgentFinal.ts`** - Robust sentiment analysis agent
+- **`NewsDatabaseService.ts`** - Database operations and caching
+- **`schema_simplified.sql`** - PostgreSQL schema definition
 
-### 🏗️ Architecture
-- [**ARCHITECTURE.md**](docs/ARCHITECTURE.md) - Architecture technique du systeme
-- Base de donnees complete avec schema SQL optimise
-- Systeme d'agents IA modular et extensible
+### Configuration
+- **`.env`** - Database connection settings
+- **`package.json`** - Dependencies and npm scripts
+- **`database.md`** - Generated buffer file for AI input inspection
 
-### 🚀 Scripts & Outils
-- Scripts d'analyse et d'export CSV
-- Gestionnaire de cache intelligent
-- Outils de monitoring et statistiques
+### Test Scripts
+- **`test_final_sentiment.ts`** - Agent functionality testing
+- **`test_database_connection.ts`** - Database connectivity tests
+- **`fix_database.ts`** - Database repair utilities
 
 ---
 
-## 🤝 Contribution & Developpement
+## 🛠 Development
 
-### 🔧 Environnement de Developpement
+### Environment Setup
 ```bash
-npm run dev          # Mode developpement
-npm run build        # Build TypeScript
-npm run test         # Tests unitaires
+# Development mode
+npm run dev
+
+# TypeScript compilation
+npm run build
+
+# Run tests
+npm test
 ```
 
-### 📊 Monitoring
+### Adding New Features
+1. **Create new agent** extending `BaseAgentSimple`
+2. **Update database schema** in `schema_simplified.sql`
+3. **Add npm script** to `package.json`
+4. **Update CLI interface** in `run.ts`
+
+### Monitoring & Debugging
 ```bash
-npm run db:stats     # Statistiques DB
-npm run refresh      # Gestion cache
-npm run pipeline     # Pipeline complet
+# Database statistics
+npm run status
+
+# View database buffer (created during analysis)
+cat database.md
+
+# Check database logs
+# PostgreSQL logs contain detailed operation information
 ```
 
-### 🌟 Fonctionnalites Futures
-- [ ] Dashboard web en temps reel
-- [ ] Integration Telegram Bot
-- [ ] Analyse technique automatique
-- [ ] Backtesting de strategies
-- [ ] API REST publique
+---
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+**Database Connection Failed**
+```bash
+# Check PostgreSQL is running
+pg_isready -h localhost -p 5432
+
+# Verify credentials in .env
+# Test connection manually
+psql -h localhost -U postgres -d financial_analyst
+```
+
+**KiloCode Analysis Failed**
+```bash
+# Check KiloCode installation
+kilocode --version
+
+# Test KiloCode directly
+echo "Analyze market sentiment" | kilocode -m ask --auto --json
+```
+
+**No News in Database**
+```bash
+# Run news ingestion first
+npx ts-node src/backend/ingestion/NewsAggregator.ts
+
+# Check database status
+npm run status
+```
+
+### Error Messages Explained
+- **"Analysis not available: Database not available"** - Database connection failed
+- **"KiloCode analysis failed"** - AI service unavailable or error
+- **"No news data available in database"** - Empty database, run ingestion first
 
 ---
 
-## 📄 Licence
+## 🚀 Future Enhancements
 
-Ce projet est sous licence **ISC** - voir [LICENSE](LICENSE) pour les details.
+### Planned Features
+- [ ] **Web Dashboard** - Real-time sentiment visualization
+- [ ] **Telegram Integration** - Automated sentiment alerts
+- [ ] **Technical Analysis** - Chart pattern recognition
+- [ ] **Backtesting Engine** - Strategy performance testing
+- [ ] **REST API** - External integration capabilities
+- [ ] **Machine Learning** - Predictive sentiment models
+
+### Scalability Improvements
+- [ ] **Multi-Source Aggregation** - Additional news feeds
+- [ ] **Real-Time Stream Processing** - WebSocket integration
+- [ ] **Distributed Architecture** - Microservices deployment
+- [ ] **Advanced Caching** - Redis integration for performance
 
 ---
 
-**🚀 Projet actif en developpement continu avec IA KiloCode (x-ai) et architecture PostgreSQL avancee**
+## 📄 License
+
+This project is licensed under the **ISC License** - see [LICENSE](LICENSE) for details.
+
+---
+
+<div align="center">
+
+**🚀 Production-Ready Financial Sentiment Analysis System**
+
+*Built with ❤️ using TypeScript, PostgreSQL, and KiloCode AI*
+
+[⭐ Star This Repo] • [🐛 Report Issues] • [📖 Documentation] • [🤝 Contributing]
+
+</div>

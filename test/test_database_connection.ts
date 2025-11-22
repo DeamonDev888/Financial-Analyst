@@ -1,4 +1,4 @@
-import { NewsDatabaseService } from './src/backend/database/NewsDatabaseService';
+import { NewsDatabaseService } from '../src/backend/database/NewsDatabaseService';
 
 /**
  * Test de connexion et configuration de la base de données

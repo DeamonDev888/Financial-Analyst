@@ -1,1 +1,0 @@
-Return JSON: {"sentiment": "BULLISH", "score": 75}
