@@ -2,6 +2,10 @@ import { Pool, PoolClient, QueryResult } from 'pg';
 import { NewsItem } from '../ingestion/NewsAggregator';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import * as dotenv from 'dotenv';
+
+// Charger les variables d'environnement
+dotenv.config();
 
 export interface DatabaseNewsItem extends NewsItem {
     id?: string;
@@ -71,7 +75,7 @@ export class NewsDatabaseService {
             };
 
             this.pool = new Pool(connectionString ? { connectionString } : defaultConfig);
-            this.initializeDatabase();
+            // L'initialisation sera faite lors de la première utilisation
         } catch (error) {
             console.log("⚠️ Database initialization failed - running in memory-only mode");
             this.pool = null as any;
@@ -82,6 +86,11 @@ export class NewsDatabaseService {
      * Initialise la base de données avec le schéma
      */
     private async initializeDatabase(): Promise<void> {
+        if (!this.pool) {
+            console.log("🔌 Database disabled - skipping initialization");
+            return;
+        }
+
         try {
             const schemaPath = path.join(__dirname, 'schema.sql');
             const schemaSQL = await fs.readFile(schemaPath, 'utf-8');
@@ -92,7 +101,7 @@ export class NewsDatabaseService {
 
             console.log("✅ Database initialized successfully");
         } catch (error) {
-            console.error("❌ Database initialization failed:", error);
+            console.log("⚠️ Database initialization failed - running without database");
             // Ne pas lancer d'erreur pour permettre à l'application de démarrer
         }
     }
@@ -163,6 +172,9 @@ export class NewsDatabaseService {
         }
 
         if (newsItems.length === 0) return 0;
+
+        // S'assurer que les tables existent
+        await this.initializeDatabase();
 
         const client = await this.pool.connect();
         let savedCount = 0;
@@ -256,8 +268,16 @@ export class NewsDatabaseService {
      * Sauvegarde une analyse de sentiment
      */
     async saveSentimentAnalysis(analysis: any): Promise<string> {
-        const client = await this.pool.connect();
+        if (!this.pool) {
+            console.log("🔌 Database disabled - skipping sentiment analysis save");
+            return '';
+        }
+
         try {
+            // S'assurer que les tables existent
+            await this.initializeDatabase();
+
+            const client = await this.pool.connect();
             const result = await client.query(`
                 INSERT INTO sentiment_analyses (
                     analysis_date, overall_sentiment, score, risk_level, confidence,
@@ -276,9 +296,11 @@ export class NewsDatabaseService {
                 JSON.stringify({})
             ]);
 
-            return result.rows[0].id;
-        } finally {
             client.release();
+            return result.rows[0].id;
+        } catch (error) {
+            console.log("⚠️ Failed to save sentiment analysis - continuing without database");
+            return '';
         }
     }
 
@@ -286,6 +308,7 @@ export class NewsDatabaseService {
      * Récupère la dernière analyse de sentiment
      */
     async getLatestSentimentAnalysis(): Promise<SentimentAnalysisRecord | null> {
+        if (!this.pool) return null;
         const client = await this.pool.connect();
         try {
             const result = await client.query(`
@@ -334,26 +357,35 @@ export class NewsDatabaseService {
         success: boolean,
         error?: string
     ): Promise<void> {
-        const client = await this.pool.connect();
+        if (!this.pool) {
+            console.log("🔌 Database disabled - skipping source status update");
+            return;
+        }
+
         try {
-            if (success) {
-                await client.query(`
-                    UPDATE news_sources
-                    SET last_success_at = NOW(),
-                        last_scraped_at = NOW(),
-                        success_count = success_count + 1
-                    WHERE name = $1
-                `, [sourceName]);
-            } else {
-                await client.query(`
-                    UPDATE news_sources
-                    SET last_scraped_at = NOW(),
-                        error_count = error_count + 1
-                    WHERE name = $1
-                `, [sourceName]);
+            const client = await this.pool.connect();
+            try {
+                if (success) {
+                    await client.query(`
+                        UPDATE news_sources
+                        SET last_success_at = NOW(),
+                            last_scraped_at = NOW(),
+                            success_count = success_count + 1
+                        WHERE name = $1
+                    `, [sourceName]);
+                } else {
+                    await client.query(`
+                        UPDATE news_sources
+                        SET last_scraped_at = NOW(),
+                            error_count = error_count + 1
+                        WHERE name = $1
+                    `, [sourceName]);
+                }
+            } finally {
+                client.release();
             }
-        } finally {
-            client.release();
+        } catch (error) {
+            console.log("⚠️ Failed to update source status - continuing without database");
         }
     }
 
@@ -361,6 +393,7 @@ export class NewsDatabaseService {
      * Récupère les statistiques de la base de données
      */
     async getDatabaseStats(): Promise<any> {
+        if (!this.pool) return { error: 'Database disabled' };
         const client = await this.pool.connect();
         try {
             const [newsStats, sourceStats, analysisStats] = await Promise.all([
@@ -381,7 +414,7 @@ export class NewsDatabaseService {
                 `),
                 client.query(`
                     SELECT COUNT(*) as total_analyses,
-                           MAX(created_at) as latest_analysis
+                            MAX(created_at) as latest_analysis
                     FROM sentiment_analyses
                 `)
             ]);
@@ -400,6 +433,7 @@ export class NewsDatabaseService {
      * Nettoie les anciennes données
      */
     async cleanupOldData(daysToKeep: number = 30): Promise<void> {
+        if (!this.pool) return;
         const client = await this.pool.connect();
         try {
             const result = await client.query(`
@@ -453,7 +487,7 @@ export class NewsDatabaseService {
      * Détermine les heures de marché
      */
     private determineMarketHours(timestamp: Date): 'pre-market' | 'market' | 'after-hours' | 'extended' {
-        const estTime = new Date(timestamp.toLocaleString("en-US", {timeZone: "America/New_York"}));
+        const estTime = new Date(timestamp.toLocaleString("en-US", { timeZone: "America/New_York" }));
         const hours = estTime.getHours();
         const day = estTime.getDay();
 

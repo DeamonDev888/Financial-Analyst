@@ -22,33 +22,79 @@ export abstract class BaseAgent {
     }
 
     /**
-     * Exécute une requête KiloCode via le CLI
+     * Exécute une requête KiloCode via le CLI avec gestion robuste des prompts
      */
     protected async callKiloCode(req: AgentRequest): Promise<any> {
         const fullOutputPath = path.join(process.cwd(), req.outputFile);
 
-        // Construction de la commande
-        // Mode: ask (par défaut), Modèle: configuré dans ~/.kilocode/cli/config.json
-        // Note: On injecte le contexte TOON si présent dans le prompt ou via le fichier d'entrée
-        let command = `kilocode -m ask --auto --json "${req.prompt.replace(/"/g, '\\"')}"`;
+        console.log(`[${this.agentName}] Preparing KiloCode execution...`);
 
-        // Gestion du pipeline d'entrée
-        if (req.inputFile) {
-            const fullInputPath = path.join(process.cwd(), req.inputFile);
-            // Utilisation de 'type' pour Windows, 'cat' pour Linux/Mac serait mieux géré avec une détection d'OS
-            // Mais ici on assume l'environnement Windows de l'utilisateur
-            command = `type "${fullInputPath}" | ${command}`;
+        try {
+            // Pour les gros prompts, on utilise un fichier temporaire pour éviter les limites de ligne de commande
+            if (req.prompt.length > 1000) {
+                return await this.callKiloCodeWithFile(req, fullOutputPath);
+            } else {
+                return await this.callKiloCodeDirect(req, fullOutputPath);
+            }
+        } catch (error) {
+            console.error(`[${this.agentName}] KiloCode execution failed:`, error);
+            throw error;
         }
+    }
 
-        // 4. Exécution via SPAWN (Streaming) pour éviter les limites de buffer de exec
-        console.log(`[${this.agentName}] Executing AI (Spawn Mode): ${command}`);
+    /**
+     * Exécute KiloCode avec un fichier temporaire (pour les gros prompts)
+     */
+    private async callKiloCodeWithFile(req: AgentRequest, fullOutputPath: string): Promise<any> {
+        // Créer un fichier temporaire avec le prompt
+        const tempPromptPath = path.join(process.cwd(), 'temp_prompt.txt');
+        await fs.writeFile(tempPromptPath, req.prompt, 'utf-8');
+
+        console.log(`[${this.agentName}] Using file-based execution for large prompt (${req.prompt.length} chars)`);
+
+        const command = `type "${tempPromptPath}" | kilocode -m ask --auto --json`;
+        console.log(`[${this.agentName}] Executing: ${command}`);
 
         return new Promise((resolve, reject) => {
-            // Sur Windows, on doit utiliser un shell pour le pipe (|)
             const child = require('child_process').spawn(command, {
                 shell: true,
                 cwd: process.cwd()
             });
+
+            return this.handleChildProcess(child, fullOutputPath, resolve, reject, tempPromptPath);
+        });
+    }
+
+    /**
+     * Exécute KiloCode directement en ligne de commande (pour les petits prompts)
+     */
+    private async callKiloCodeDirect(req: AgentRequest, fullOutputPath: string): Promise<any> {
+        const escapedPrompt = req.prompt.replace(/"/g, '\\"');
+        const command = `kilocode -m ask --auto --json "${escapedPrompt}"`;
+
+        // Gestion du pipeline d'entrée si nécessaire
+        let fullCommand = command;
+        if (req.inputFile) {
+            const fullInputPath = path.join(process.cwd(), req.inputFile);
+            fullCommand = `type "${fullInputPath}" | ${command}`;
+        }
+
+        console.log(`[${this.agentName}] Executing: ${fullCommand}`);
+
+        return new Promise((resolve, reject) => {
+            const child = require('child_process').spawn(fullCommand, {
+                shell: true,
+                cwd: process.cwd()
+            });
+
+            return this.handleChildProcess(child, fullOutputPath, resolve, reject);
+        });
+    }
+
+    /**
+     * Gère le processus enfant KiloCode
+     */
+    private handleChildProcess(child: any, fullOutputPath: string, resolve: Function, reject: Function, tempFile?: string): void {
 
             let stdoutData = '';
             let stderrData = '';
@@ -62,7 +108,8 @@ export abstract class BaseAgent {
             });
 
             child.on('close', async (code: number) => {
-                if (code !== 0) {
+                // Si on a capturé une réponse (stdoutData), on ignore le code de sortie (car on a peut-être tué le processus)
+                if (code !== 0 && !stdoutData) {
                     console.error(`[${this.agentName}] AI Process exited with code ${code}`);
                     console.error(`[${this.agentName}] Stderr:`, stderrData);
                     return reject(new Error(`AI Process failed with code ${code}`));
@@ -76,126 +123,309 @@ export abstract class BaseAgent {
                     // Sauvegarde pour debug
                     await fs.writeFile(fullOutputPath, stdoutData, 'utf-8');
 
-                    // Parsing du flux NDJSON
+                    // Parsing robuste du flux NDJSON
                     const lines = stdoutData.split('\n').filter((line: string) => line.trim() !== '');
                     let fullResponse = '';
+                    let jsonCandidate = '';
+                    let hasValidJson = false;
+
+                    console.log(`[${this.agentName}] Parsing ${lines.length} NDJSON lines...`);
 
                     for (const line of lines) {
                         try {
                             const event = JSON.parse(line);
-                            // On ignore le "reasoning" pour ne garder que le résultat final
-                            // IMPORTANT: KiloCode envoie le texte COMPLET à chaque update (snapshot), pas un delta.
-                            // Donc on remplace fullResponse au lieu de concaténer.
-                            if (event.type === 'say' && event.say !== 'reasoning') {
-                                if (event.content) {
+
+                            // 1. Priorité absolue: JSON direct dans metadata (cas le plus fiable)
+                            if (event.metadata && (event.metadata.sentiment || event.metadata.score || event.metadata.catalysts)) {
+                                fullResponse = JSON.stringify(event.metadata);
+                                hasValidJson = true;
+                                console.log(`[${this.agentName}] Found JSON in metadata`);
+                                break;
+                            }
+
+                            // 2. Capture du contenu avec priorité pour les types d'événements
+                            if (event.content) {
+                                // Priority: completion_result > text > say (non-reasoning)
+                                if (event.type === 'completion_result') {
                                     fullResponse = event.content;
-                                }
-                                // Parfois le JSON est directement dans metadata
-                                if (event.metadata && (event.metadata.sentiment || event.metadata.score)) {
-                                    fullResponse = JSON.stringify(event.metadata);
+                                    hasValidJson = true;
+                                    console.log(`[${this.agentName}] Found completion_result content`);
+                                    break;
+                                } else if (event.type === 'text') {
+                                    fullResponse = event.content;
+                                    console.log(`[${this.agentName}] Found text content`);
+                                } else if (event.type === 'say' && event.say !== 'reasoning') {
+                                    fullResponse = event.content;
+                                    console.log(`[${this.agentName}] Found say content (non-reasoning)`);
                                 }
                             }
 
-                            // Capture du résultat final si c'est un type 'completion_result'
-                            if (event.type === 'completion_result' && event.content) {
-                                fullResponse = event.content;
+                            // 3. Détection précoce de JSON dans le contenu
+                            if (event.content && !hasValidJson) {
+                                // Cherche des structures JSON dans le contenu
+                                const jsonInContent = this.extractJsonFromText(event.content);
+                                if (jsonInContent) {
+                                    jsonCandidate = jsonInContent;
+                                    console.log(`[${this.agentName}] Found JSON candidate in content`);
+                                }
                             }
 
-                            // Si KiloCode demande une validation du résultat, on considère que c'est fini et on coupe
+                            // 4. Si KiloCode demande une validation, on termine proprement
                             if (event.type === 'ask' && event.ask === 'completion_result') {
-                                child.kill(); // On force l'arrêt pour ne pas rester bloqué
+                                console.log(`[${this.agentName}] Completion validation requested, terminating process...`);
+                                child.kill('SIGTERM');
+                                break;
                             }
 
                         } catch (e) {
-                            // Ignorer les lignes malformées ou non-JSON
-                        }
-                    }
-
-                    console.log(`[${this.agentName}] AI Response Length: ${fullResponse.length} chars`);
-
-                    // Fallback: si le parsing NDJSON échoue (pas d'event 'say'), on prend tout le stdout
-                    // (Cas où KiloCode renvoie du texte brut sans streaming)
-                    if (fullResponse.length === 0 && stdoutData.length > 0) {
-                        console.warn(`[${this.agentName}] Warning: No NDJSON 'say' events found. Using raw stdout.`);
-                        fullResponse = stdoutData;
-                    }
-
-                    // Nettoyage du Markdown
-                    const jsonMatch = fullResponse.match(/```json\s*([\s\S]*?)\s*```/) || fullResponse.match(/```\s*([\s\S]*?)\s*```/);
-                    let cleanJson = jsonMatch ? jsonMatch[1] : fullResponse;
-
-                    // Tentative 1: Parsing direct (cas idéal)
-                    try {
-                        resolve(JSON.parse(cleanJson));
-                        return;
-                    } catch (e) {
-                        // Continue vers le nettoyage si échec
-                    }
-
-                    // Tentative 2: Nettoyage agressif des artefacts de shell/escape
-                    let aggressiveClean = cleanJson.replace(/^"|"$|\\"/g, (m) => m === '\\"' ? '"' : '')
-                        .replace(/\\n/g, '\n')
-                        .trim();
-
-                    if (aggressiveClean.startsWith('"') && aggressiveClean.endsWith('"')) {
-                        aggressiveClean = aggressiveClean.slice(1, -1);
-                    }
-
-                    const firstBrace = aggressiveClean.indexOf('{');
-                    const lastBrace = aggressiveClean.lastIndexOf('}');
-
-                    if (firstBrace !== -1 && lastBrace !== -1) {
-                        aggressiveClean = aggressiveClean.substring(firstBrace, lastBrace + 1);
-                    }
-
-                    try {
-                        resolve(JSON.parse(aggressiveClean));
-                    } catch (e) {
-                        // Tentative 3: Fallback Parser pour le format Markdown (**SENTIMENT:** ...)
-                        console.warn(`[${this.agentName}] JSON Parsing failed, attempting Markdown fallback...`);
-
-                        const sentimentMatch = fullResponse.match(/\*\*SENTIMENT:\*\*\s*(\w+)/i);
-                        const scoreMatch = fullResponse.match(/\((-?\d+)\/100\)/);
-                        const riskMatch = fullResponse.match(/\*\*RISK LEVEL:\*\*\s*(\w+)/i);
-                        const summaryMatch = fullResponse.match(/\*\*SUMMARY:\*\*\s*([\s\S]+?)$/i);
-
-                        // Extraction des catalysts (liste à puces)
-                        const catalysts: string[] = [];
-                        const catalystRegex = /-\s+(.+)/g;
-                        let match;
-                        while ((match = catalystRegex.exec(fullResponse)) !== null) {
-                            if (match.index < (summaryMatch?.index || Infinity)) {
-                                catalysts.push(match[1].trim());
+                            // Ignorer les lignes malformées mais essayer d'extraire du JSON
+                            const jsonInLine = this.extractJsonFromText(line);
+                            if (jsonInLine) {
+                                jsonCandidate = jsonInLine;
+                                console.log(`[${this.agentName}] Found JSON in malformed line`);
                             }
                         }
-
-                        if (sentimentMatch) {
-                            const result = {
-                                sentiment: sentimentMatch[1].toUpperCase(),
-                                score: scoreMatch ? parseInt(scoreMatch[1]) : 0,
-                                risk_level: riskMatch ? riskMatch[1].toUpperCase() : 'MEDIUM',
-                                catalysts: catalysts,
-                                summary: summaryMatch ? summaryMatch[1].trim() : "No summary extracted."
-                            };
-                            console.log(`[${this.agentName}] Markdown fallback successful.`);
-                            resolve(result);
-                            return;
-                        }
-
-                        console.error(`[${this.agentName}] Parsing Failed:`, e);
-                        console.error(`[${this.agentName}] Raw Output:`, fullResponse);
-                        reject(new Error('Failed to parse KiloCode output'));
                     }
+
+                    // 5. Validation finale du JSON
+                    let finalJson = '';
+
+                    // Priorité 1: JSON valide trouvé dans les événements
+                    if (hasValidJson && this.isValidJson(fullResponse)) {
+                        finalJson = fullResponse;
+                    }
+                    // Priorité 2: JSON candidat extrait
+                    else if (jsonCandidate && this.isValidJson(jsonCandidate)) {
+                        finalJson = jsonCandidate;
+                    }
+                    // Priorité 3: Fallback - chercher JSON dans tout le stdout
+                    else {
+                        const jsonInStdout = this.extractJsonFromText(stdoutData);
+                        if (jsonInStdout && this.isValidJson(jsonInStdout)) {
+                            finalJson = jsonInStdout;
+                            console.log(`[${this.agentName}] Found JSON in stdout fallback`);
+                        } else {
+                            finalJson = fullResponse;
+                            console.log(`[${this.agentName}] Using raw response as fallback`);
+                        }
+                    }
+
+                    console.log(`[${this.agentName}] Final JSON length: ${finalJson.length} chars`);
+
+                    // 6. Nettoyage final du Markdown et des artefacts
+                    let cleanJson = this.cleanJsonResponse(finalJson);
+
+                    // Tentative de parsing du JSON nettoyé
+                    try {
+                        const parsed = JSON.parse(cleanJson);
+
+                        // Validation du contenu pour le SentimentAgent
+                        if (this.validateSentimentJson(parsed)) {
+                            console.log(`[${this.agentName}] JSON parsing successful`);
+                            resolve(parsed);
+                            return;
+                        } else {
+                            console.warn(`[${this.agentName}] JSON structure invalid, trying fallback...`);
+                        }
+                    } catch (e) {
+                        console.warn(`[${this.agentName}] JSON parsing failed: ${e instanceof Error ? e.message : 'Unknown error'}`);
+                    }
+
+                    // Fallback: Parser Markdown si disponible
+                    const markdownResult = this.parseMarkdownFallback(finalJson);
+                    if (markdownResult) {
+                        console.log(`[${this.agentName}] Markdown fallback successful`);
+                        resolve(markdownResult);
+                        return;
+                    }
+
+                    // Si tout échoue, retourner une erreur claire
+                    console.error(`[${this.agentName}] All parsing methods failed`);
+                    console.error(`[${this.agentName}] Cleaned JSON preview:`, cleanJson.substring(0, 200) + '...');
+                    reject(new Error('Failed to parse KiloCode output - no valid JSON or markdown format found'));
 
                 } catch (error) {
                     console.error(`[${this.agentName}] Parsing Failed:`, error);
                     reject(error);
+                } finally {
+                    // Nettoyer le fichier temporaire si existe
+                    if (tempFile) {
+                        try {
+                            await fs.unlink(tempFile);
+                            console.log(`[${this.agentName}] Cleaned up temporary file: ${tempFile}`);
+                        } catch (e) {
+                            console.warn(`[${this.agentName}] Failed to clean temporary file: ${e}`);
+                        }
+                    }
                 }
             });
 
             child.on('error', (err: any) => {
+                // Nettoyer le fichier temporaire en cas d'erreur
+                if (tempFile) {
+                    fs.unlink(tempFile).catch(() => {}); // Ignorer les erreurs de nettoyage
+                }
                 reject(err);
             });
         });
+    }
+
+    /**
+     * Extrait et valide du JSON depuis du texte
+     */
+    private extractJsonFromText(text: string): string | null {
+        if (!text) return null;
+
+        // 1. Cherche les blocs ```json ou ```
+        const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/```\s*([\s\S]*?)\s*```/);
+        if (jsonMatch) {
+            return jsonMatch[1].trim();
+        }
+
+        // 2. Cherche les objets JSON complets { ... }
+        const braceMatch = text.match(/\{[^{}]*\{[^{}]*\}[^{}]*\}/) || text.match(/\{[\s\S]*?\}/);
+        if (braceMatch) {
+            return braceMatch[0].trim();
+        }
+
+        // 3. Cherche des patterns spécifiques au SentimentAgent
+        const sentimentMatch = text.match(/\{[\s\S]*"sentiment"[\s\S]*\}/);
+        if (sentimentMatch) {
+            return sentimentMatch[0].trim();
+        }
+
+        return null;
+    }
+
+    /**
+     * Valide si une chaîne est du JSON valide
+     */
+    private isValidJson(str: string): boolean {
+        if (!str || typeof str !== 'string') return false;
+
+        const trimmed = str.trim();
+        if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) return false;
+
+        try {
+            JSON.parse(trimmed);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * Nettoie la réponse JSON des artefacts Markdown et d'échappement
+     */
+    private cleanJsonResponse(response: string): string {
+        if (!response) return '';
+
+        let cleaned = response.trim();
+
+        // 1. Retire les blocs de code markdown
+        cleaned = cleaned.replace(/```json\s*/g, '').replace(/```\s*$/g, '');
+
+        // 2. Retire les quotes d'échappement au début/fin
+        if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
+            cleaned = cleaned.slice(1, -1);
+        }
+
+        // 3. Corrige les échappements incorrects
+        cleaned = cleaned.replace(/\\"/g, '"').replace(/\\n/g, '\n');
+
+        // 4. Trouve le premier objet JSON valide
+        const firstBrace = cleaned.indexOf('{');
+        const lastBrace = cleaned.lastIndexOf('}');
+
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+            cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+        }
+
+        return cleaned;
+    }
+
+    /**
+     * Valide la structure JSON pour le SentimentAgent
+     */
+    private validateSentimentJson(parsed: any): boolean {
+        if (!parsed || typeof parsed !== 'object') return false;
+
+        // Vérifie les champs requis pour le SentimentAgent
+        const hasSentiment = parsed.sentiment && typeof parsed.sentiment === 'string';
+        const hasValidSentiment = ['BULLISH', 'BEARISH', 'NEUTRAL'].includes(parsed.sentiment?.toUpperCase());
+        const hasScore = typeof parsed.score === 'number';
+        const hasRiskLevel = ['LOW', 'MEDIUM', 'HIGH'].includes(parsed.risk_level?.toUpperCase());
+        const hasCatalysts = Array.isArray(parsed.catalysts);
+        const hasSummary = typeof parsed.summary === 'string';
+
+        return hasSentiment && hasValidSentiment && hasScore && hasRiskLevel && hasCatalysts && hasSummary;
+    }
+
+    /**
+     * Fallback parser pour format Markdown
+     */
+    private parseMarkdownFallback(text: string): any | null {
+        if (!text) return null;
+
+        try {
+            const sentimentMatch = text.match(/\*\*SENTIMENT:\*\*\s*(\w+)/i) ||
+                                  text.match(/sentiment["\s:]+(\w+)/i) ||
+                                  text.match(/"sentiment"\s*:\s*"(\w+)"/i);
+
+            const scoreMatch = text.match(/\((-?\d+)\/100\)/) ||
+                             text.match(/score["\s:]+(-?\d+)/i) ||
+                             text.match(/"score"\s*:\s*(-?\d+)/i);
+
+            const riskMatch = text.match(/\*\*RISK LEVEL:\*\*\s*(\w+)/i) ||
+                            text.match(/risk[_\s]*level["\s:]+(\w+)/i) ||
+                            text.match(/"risk_level"\s*:\s*"(\w+)"/i);
+
+            const summaryMatch = text.match(/\*\*SUMMARY:\*\*\s*([\s\S]+?)$/i) ||
+                               text.match(/summary["\s:]+(.+?)(?:\n|$)/i) ||
+                               text.match(/"summary"\s*:\s*"([^"]+)"/i);
+
+            // Extraction des catalysts
+            const catalysts: string[] = [];
+
+            // Format de liste à puces
+            const bulletRegex = /[-*+]\s+(.+?)(?=\n[-*+]|\n\n|$)/g;
+            let bulletMatch;
+            while ((bulletMatch = bulletRegex.exec(text)) !== null) {
+                const catalyst = bulletMatch[1].trim();
+                if (catalyst.length > 0 && catalyst.length < 200) {
+                    catalysts.push(catalyst);
+                }
+            }
+
+            // Format JSON dans texte
+            const catalystJsonMatch = text.match(/"catalysts"\s*:\s*\[(.*?)\]/s);
+            if (catalystJsonMatch) {
+                try {
+                    const catalystArray = JSON.parse(`[${catalystJsonMatch[1]}]`);
+                    if (Array.isArray(catalystArray)) {
+                        catalysts.push(...catalystArray.filter(c => typeof c === 'string'));
+                    }
+                } catch (e) {
+                    // Ignorer les erreurs de parsing
+                }
+            }
+
+            if (sentimentMatch) {
+                const sentiment = sentimentMatch[1].toUpperCase();
+                const validSentiment = ['BULLISH', 'BEARISH', 'NEUTRAL'].includes(sentiment) ? sentiment : 'NEUTRAL';
+
+                return {
+                    sentiment: validSentiment,
+                    score: scoreMatch ? parseInt(scoreMatch[1]) : 0,
+                    risk_level: riskMatch ? riskMatch[1].toUpperCase() : 'MEDIUM',
+                    catalysts: catalysts.slice(0, 5), // Limiter à 5 catalysts
+                    summary: summaryMatch ? summaryMatch[1].trim().replace(/"/g, '') : "No summary extracted."
+                };
+            }
+        } catch (e) {
+            console.warn(`[${this.agentName}] Markdown parsing error:`, e);
+        }
+
+        return null;
     }
 }

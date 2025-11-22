@@ -1,23 +1,20 @@
-import { BaseAgent } from './BaseAgent';
+import { BaseAgentSimple } from './BaseAgentSimple';
 import { NewsAggregator, NewsItem } from '../ingestion/NewsAggregator';
 import { NewsDatabaseService, DatabaseNewsItem } from '../database/NewsDatabaseService';
 import { ToonFormatter } from '../utils/ToonFormatter';
-import * as fs from 'fs/promises';
-import * as path from 'path';
 
-export class SentimentAgent extends BaseAgent {
+export class SentimentAgentSimple extends BaseAgentSimple {
     private newsAggregator: NewsAggregator;
     private dbService: NewsDatabaseService;
 
     constructor() {
-        super('sentiment-agent');
+        super('sentiment-agent-simple');
         this.newsAggregator = new NewsAggregator();
         this.dbService = new NewsDatabaseService();
     }
 
     /**
-     * Exécute le cycle complet d'analyse de sentiment avec cache intelligent.
-     * Retourne "N/A" si l'analyse échoue, sans fallback ou données simulées.
+     * Analyse de sentiment robuste avec fallback N/A
      */
     async analyzeMarketSentiment(forceRefresh: boolean = false): Promise<any> {
         console.log(`[${this.agentName}] Starting market sentiment analysis...`);
@@ -35,7 +32,6 @@ export class SentimentAgent extends BaseAgent {
                 console.log(`[${this.agentName}] Database cache status: ${cacheFresh ? 'FRESH' : 'STALE'}`);
 
                 if (cacheFresh) {
-                    // 3. Utiliser les données du cache
                     const cachedNews = await this.dbService.getNewsForAnalysis(24);
                     allNews = cachedNews.map(item => ({
                         title: item.title,
@@ -50,12 +46,11 @@ export class SentimentAgent extends BaseAgent {
             }
 
             if (allNews.length === 0) {
-                // 4. Scraper les nouvelles sources si le cache est vide ou stale
+                // 3. Scraper les nouvelles sources si le cache est vide ou stale
                 console.log(`[${this.agentName}] Scraping fresh news data...`);
                 allNews = await this.scrapeFreshNews();
 
                 if (dbConnected && allNews.length > 0) {
-                    // 5. Sauvegarder dans la base de données (silencieux)
                     await this.dbService.saveNewsItems(allNews);
                 }
             }
@@ -65,11 +60,11 @@ export class SentimentAgent extends BaseAgent {
                 return this.createNotAvailableResult('No news data from any source');
             }
 
-            // 6. Analyser les sentiments
+            // 4. Analyser les sentiments
             console.log(`[${this.agentName}] Analyzing ${allNews.length} news items (${useCache ? 'from cache' : 'fresh'})...`);
             const result = await this.performSentimentAnalysis(allNews, useCache);
 
-            // 7. Sauvegarder l'analyse si base de données disponible (silencieux)
+            // 5. Sauvegarder l'analyse si base de données disponible
             if (dbConnected) {
                 await this.dbService.saveSentimentAnalysis(result);
             }
@@ -109,7 +104,6 @@ export class SentimentAgent extends BaseAgent {
         console.log(`[${this.agentName}] Scraping from ${sources.join(', ')}...`);
 
         try {
-            // Agrégation parallèle des données
             const [zeroHedge, cnbc, financialJuice] = await Promise.allSettled([
                 this.newsAggregator.fetchZeroHedgeHeadlines(),
                 this.newsAggregator.fetchCNBCMarketNews(),
@@ -123,7 +117,6 @@ export class SentimentAgent extends BaseAgent {
             results.forEach((result, index) => {
                 if (result.status === 'fulfilled') {
                     allNews.push(...result.value);
-                    // Mettre à jour le statut de la source
                     this.dbService.updateSourceStatus(sources[index], true);
                 } else {
                     console.error(`[${this.agentName}] Failed to scrape ${sources[index]}:`, result.reason);
@@ -147,27 +140,19 @@ export class SentimentAgent extends BaseAgent {
         console.log(`[${this.agentName}] Analyzing ${newsItems.length} news items (${useCache ? 'from cache' : 'fresh'})...`);
 
         try {
-            // 1. Conversion en format TOON
+            // Conversion en format TOON
             const toonData = ToonFormatter.arrayToToon('headlines', newsItems.map(n => ({
                 title: n.title,
                 src: n.source
             })));
 
-            // 3. Sauvegarde du contexte TOON dans un fichier pour éviter les problèmes de CLI
-            const contextFilePath = `data/agent-data/${this.agentName}/context.toon`;
-            const fullContextPath = path.join(process.cwd(), contextFilePath);
-
-            // Affichage des données pour l'utilisateur (Feedback visuel)
+            // Affichage des données pour l'utilisateur
             console.log("\nDATA:");
             console.log(toonData);
             console.log("\n");
 
-            // Assurer que le dossier existe
-            await fs.mkdir(path.dirname(fullContextPath), { recursive: true });
-            await fs.writeFile(fullContextPath, toonData, 'utf-8');
-
-            // 4. Construction du Prompt (Instructions + Données intégrées)
-        const prompt = `
+            // Construction du Prompt optimisé
+            const prompt = `
 You are an expert Market Sentiment Analyst for ES Futures (S&P 500).
 
 TASK:
@@ -175,14 +160,9 @@ Analyze the provided TOON data below and return the result in strict JSON format
 
 CRITICAL INSTRUCTIONS:
 1. Output ONLY valid JSON.
-2. Do NOT use Markdown code blocks (no \`\`\`json).
+2. Do NOT use Markdown code blocks (no \\`\\`\\`json).
 3. Do NOT include any reasoning or conversational text.
 4. The output must be parseable by JSON.parse().
-
-EXAMPLE INPUT:
-headlines[2]{title,src}:
-  Fed Cuts Rates by 50bps,CNBC
-  Tech Stocks Rally on AI News,ZeroHedge
 
 EXAMPLE OUTPUT:
 {
@@ -213,27 +193,19 @@ REMINDER:
 3. NO introductory text. NO markdown. NO explanations outside the JSON.
 `;
 
-        // 5. Appel à KiloCode (Mode Pipe/Stream) avec timeout
-        console.log(`[${this.agentName}] Sending request to KiloCode...`);
+            console.log(`[${this.agentName}] Sending request to KiloCode...`);
 
-        // Ajout d'un timeout pour éviter les blocages indéfinis
-        const analysisPromise = this.callKiloCode({
-            prompt: prompt,
-            // inputFile retiré car données intégrées au prompt
-            outputFile: `data/agent-data/${this.agentName}/sentiment_analysis.json`,
-        });
+            // Appel à KiloCode avec le BaseAgentSimple robuste
+            const result = await this.callKiloCode({
+                prompt: prompt,
+                outputFile: `data/agent-data/${this.agentName}/sentiment_analysis.json`,
+            });
 
-        const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Analysis timeout after 120 seconds')), 120000); // 2 minutes
-        });
-
-        const analysisResult = await Promise.race([analysisPromise, timeoutPromise]);
-        return analysisResult;
+            console.log(`[${this.agentName}] KiloCode analysis completed successfully`);
+            return result;
 
         } catch (error) {
             console.error(`[${this.agentName}] Sentiment analysis error:`, error);
-
-            // Retourner N/A au lieu de propager l'erreur
             return this.createNotAvailableResult(`Sentiment analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
@@ -244,22 +216,6 @@ REMINDER:
     async refreshCache(): Promise<void> {
         console.log(`[${this.agentName}] Forcing cache refresh...`);
         await this.analyzeMarketSentiment(true);
-    }
-
-    /**
-     * Obtient les statistiques de la base de données
-     */
-    async getDatabaseStats(): Promise<any> {
-        try {
-            const dbConnected = await this.dbService.testConnection();
-            if (!dbConnected) {
-                return { error: 'Database not connected' };
-            }
-
-            return await this.dbService.getDatabaseStats();
-        } catch (error) {
-            return { error: error instanceof Error ? error.message : 'Unknown error' };
-        }
     }
 
     /**
