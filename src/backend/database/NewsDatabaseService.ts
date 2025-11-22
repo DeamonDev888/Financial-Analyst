@@ -160,7 +160,7 @@ export class NewsDatabaseService {
 
         try {
             // Utiliser le schéma simplifié sans PL/pgSQL
-            const schemaPath = path.join(__dirname, 'schema_simplified.sql');
+            const schemaPath = path.join(__dirname, 'schema.sql');
             console.log(`📄 Reading simplified schema from: ${schemaPath}`);
             const schemaSQL = await fs.readFile(schemaPath, 'utf-8');
 

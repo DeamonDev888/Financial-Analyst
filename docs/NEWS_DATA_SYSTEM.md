@@ -1,221 +1,99 @@
-# Système de Traitement des Données de Marché
+# Système de Données de Marché (News Data System)
 
 ## 🎯 Objectif
 
-Le système de traitement des données de marché nettoie, organise et classe les nouvelles financières par jour et heure pour faciliter l'analyse et la prise de décision de trading.
+Le système de données de marché est responsable de l'ingestion, du nettoyage, du stockage et de la récupération des nouvelles financières. Il alimente le `SentimentAgentFinal` en données fraîches et pertinentes pour l'analyse de sentiment.
 
-## 🏗️ Architecture
+## 🏗️ Architecture Actuelle
 
 ### Composants Principaux
 
-1. **NewsAggregator** - Scraping des 3 sources de données
-   - ZeroHedge (RSS)
-   - CNBC (RSS)
-   - FinancialJuice (Simulation)
+1.  **NewsAggregator** (`src/backend/ingestion/NewsAggregator.ts`)
 
-2. **NewsDataProcessor** - Nettoyage et classification
-   - Nettoyage des titres
-   - Extraction de mots-clés
-   - Classification par jour/heure
-   - Détermination des heures de marché
+    - **Rôle** : Collecte les données brutes depuis les sources externes.
+    - **Sources** :
+      - **ZeroHedge** (RSS) : News macro et contrarian.
+      - **CNBC** (RSS) : News financières mainstream.
+      - **FinancialJuice** (Simulation/API) : Headlines temps réel.
+    - **Fonctionnement** : Scrape, normalise et retourne une liste d'objets `NewsItem`.
 
-3. **NewsDataManager** - Gestion et analyse
-   - Rapports d'analyse
-   - Export CSV
-   - Statistiques de marché
+2.  **NewsDatabaseService** (`src/backend/database/NewsDatabaseService.ts`)
+    - **Rôle** : Gestionnaire de persistance et de cache.
+    - **Fonctionnalités** :
+      - **Deduplication** : Utilise un hash unique (MD5 du titre + source) pour éviter les doublons.
+      - **Caching** : Vérifie la fraîcheur des données (TTL configurable, défaut 2h).
+      - **Nettoyage** : Supprime automatiquement les news obsolètes (> 30 jours).
+    - **Stockage** : Table `news_items` dans PostgreSQL.
+
+### Flux de Données
+
+```mermaid
+graph LR
+    A[Sources Externes] -->|RSS/API| B(NewsAggregator)
+    B -->|NewsItem[]| C{NewsDatabaseService}
+    C -->|Check Hash| D[PostgreSQL DB]
+    D -->|Stored News| E[SentimentAgentFinal]
+```
 
 ## 🚀 Utilisation
 
-### Pipeline Complet
+### Ingestion Manuelle
+
+Pour forcer une mise à jour des données sans lancer d'analyse :
 
 ```bash
-# Exécuter le pipeline complet (scraping + traitement)
-npm run pipeline
+# Via le script de test/maintenance (si disponible) ou via l'agent
+npm run status
 ```
 
-### Analyse des Données
+L'ingestion est principalement déclenchée automatiquement par `SentimentAgentFinal` lors d'une analyse si le cache est expiré.
 
-```bash
-# Analyse de la dernière semaine
-npm run analyze:week
+### Accès aux Données
 
-# Analyse du dernier mois
-npm run analyze:month
+Les données sont stockées dans la table `news_items`.
 
-# Résumé du jour
-npm run data:today
-
-# Voir les dates disponibles
-npm run data:dates
-
-# Exporter en CSV (dernière semaine)
-npm run export:csv
-
-# Exporter une période personnalisée
-npm run analyze export 2024-01-01 2024-01-31
-```
-
-### Agent de Sentiment
-
-```bash
-# Lancer l'analyse de sentiment avec les nouvelles traitées
-npm run sentiment
+```sql
+-- Exemple de requête pour voir les dernières news
+SELECT title, source, published_at
+FROM news_items
+ORDER BY published_at DESC
+LIMIT 10;
 ```
 
 ## 📊 Structure des Données
 
-### Format des Données Traitées
-
-Chaque nouvelle est traitée avec les informations suivantes :
+### Interface `NewsItem`
 
 ```typescript
-interface ProcessedNewsData {
-    date: string;           // YYYY-MM-DD
-    hour: string;           // HH:00
-    timestamp: Date;
-    source: string;         // ZeroHedge, CNBC, FinancialJuice
-    title: string;          // Titre nettoyé
-    url: string;
-    sentiment?: 'bullish' | 'bearish' | 'neutral';
-    keywords: string[];     // Mots-clés pertinents
-    market_hours: 'pre-market' | 'market' | 'after-hours' | 'extended';
+interface NewsItem {
+  title: string;
+  url: string;
+  source: string;
+  published_at: string; // ISO Date
+  summary?: string;
 }
 ```
 
-### Classification par Heures de Marché
+### Schéma Base de Données (`news_items`)
 
-- **Pre-market**: 4:00-9:30 EST
-- **Market**: 9:30-16:00 EST
-- **After-hours**: 16:00-20:00 EST
-- **Extended**: Le reste du temps
+| Colonne        | Type      | Description                        |
+| :------------- | :-------- | :--------------------------------- |
+| `id`           | UUID      | Clé primaire                       |
+| `title`        | TEXT      | Titre de la news                   |
+| `url`          | TEXT      | Lien original                      |
+| `source`       | TEXT      | Nom de la source (ex: 'ZeroHedge') |
+| `published_at` | TIMESTAMP | Date de publication                |
+| `created_at`   | TIMESTAMP | Date d'insertion en DB             |
+| `hash`         | VARCHAR   | Hash unique pour déduplication     |
 
-### Mots-clés Extraits
+## 🔧 Configuration
 
-Le système extrait automatiquement les mots-clés pertinents :
+Les paramètres sont définis dans `NewsAggregator.ts` et `NewsDatabaseService.ts` ou via `.env`.
 
-- **Politique monétaire**: fed, rates, inflation, cpi, powell
-- **Indices**: s&p, nasdaq, dow, futures, volatility
-- **Secteurs**: tech, energy, financials, healthcare
-- **Actions de marché**: rally, sell-off, bull, bear, volatile
-- **Entreprises**: apple, microsoft, google, amazon, tesla
-
-## 📁 Organisation des Fichiers
-
-```
-data/
-├── processed-news/              # Données traitées par jour
-│   ├── news_2024-01-15.json    # Données du 15 janvier 2024
-│   ├── news_2024-01-14.json    # Données du 14 janvier 2024
-│   └── all_news.json           # Toutes les données consolidées
-├── exports/                    # Exports CSV
-│   └── news_2024-01-01_to_2024-01-31.csv
-└── agent-data/                 # Données pour les agents AI
-    └── sentiment-agent/
-```
-
-## 📈 Rapports d'Analyse
-
-### Rapport Hebdomadaire/Mensuel
-
-Le système génère des rapports complets incluant :
-
-- **Sentiment global**: Pourcentage bullish/bearish/neutral
-- **Activité de marché**: Nombre de nouvelles, heures de pointe
-- **Tendances**: Mots-clés les plus fréquents, sources principales
-- **Distribution temporelle**: Répartition par heures de marché
-- **Breakdown quotidien**: Évolution jour par jour
-
-### Export CSV
-
-Pour analyse externe (Excel, Python, etc.) :
-
-```bash
-npm run analyze export 2024-01-01 2024-01-31 ./exports/market_data.csv
-```
-
-Format CSV :
-- Date, Heure, Source, Titre, Sentiment, HeuresMarché, Mots-clés
-
-## 🔧 Personnalisation
-
-### Ajouter des Sources de Données
-
-Pour ajouter une nouvelle source, modifier `NewsAggregator.ts` :
-
-```typescript
-async fetchNewSource(): Promise<NewsItem[]> {
-    // Implémentation du scraping
-}
-```
-
-### Mots-clés Personnalisés
-
-Modifier `NewsDataProcessor.ts` pour ajouter des mots-clés spécifiques :
-
-```typescript
-private extractKeywords(title: string): string[] {
-    const marketKeywords = [
-        // Ajouter vos mots-clés personnalisés ici
-    ];
-}
-```
-
-### Analyse Personnalisée
-
-Créer des scripts personnalisés en utilisant `NewsDataManager` :
-
-```typescript
-const dataManager = new NewsDataManager();
-const report = await dataManager.generateAnalysisReport('2024-01-01', '2024-01-31');
-```
-
-## ⚡ Performance
-
-- **Temps de traitement**: ~10-30 secondes pour le pipeline complet
-- **Sources**: 3 sources parallélisées
-- **Nettoyage**: Algorithmes optimisés pour éviter les doublons
-- **Stockage**: Format JSON compressé pour accès rapide
+- **Sources RSS** : Configurées en dur dans `NewsAggregator`.
+- **TTL Cache** : Défini dans `SentimentAgentFinal` (défaut: 2 heures).
 
 ## 🛠️ Dépannage
 
-### Problèmes Communs
-
-1. **Pas de données disponibles**
-   ```bash
-   npm run data:dates  # Vérifier les dates disponibles
-   ```
-
-2. **Erreurs de scraping**
-   - Vérifier la connexion internet
-   - Les flux RSS peuvent être temporairement indisponibles
-
-3. **Mémoire insuffisante**
-   - Limiter la période d'analyse
-   - Exporter par périodes plus courtes
-
-### Logs et Débogage
-
-Les logs détaillés sont affichés lors de l'exécution :
-
-```bash
-DEBUG=* npm run pipeline  # Logs détaillés
-```
-
-## 📚 API Référence
-
-### NewsDataProcessor
-
-- `processNews(newsItems: NewsItem[])` - Traite les nouvelles brutes
-- `saveProcessedNews(data: ProcessedNewsData[])` - Sauvegarde les données
-- `loadDailyData(date: string)` - Charge les données d'un jour spécifique
-- `getAvailableDates()` - Retourne les dates disponibles
-
-### NewsDataManager
-
-- `runDailyNewsPipeline()` - Exécute le pipeline complet
-- `generateAnalysisReport(startDate, endDate)` - Génère un rapport
-- `exportToCSV(startDate, endDate, outputPath?)` - Export en CSV
-
----
-
-*Ce système facilite l'analyse des données de marché pour une prise de décision éclairée en trading.*
+- **Pas de news ?** : Vérifiez votre connexion internet et l'accès aux flux RSS (ZeroHedge bloque parfois les IPs datacenter).
+- **Doublons ?** : Le système de hash devrait les empêcher. Vérifiez si les titres varient légèrement.

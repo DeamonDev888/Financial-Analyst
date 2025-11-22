@@ -219,19 +219,89 @@ SentimentAgentFinal
 ```
 
 ### 💾 Database Schema
-```sql
--- Core Tables
-news_items              -- Raw and processed news (22+ items)
-sentiment_analyses      -- Analysis history with results
-news_sources           -- Source health and monitoring
-scraping_sessions     -- Data collection sessions
 
--- Key Features
-✅ 2-hour intelligent caching
-✅ Automatic cleanup (>30 days)
-✅ Performance-optimized indexes
-✅ Health monitoring & statistics
+#### **Core Tables Structure**
+
+```sql
+-- 📰 news_items (Articles financiers)
+├── id UUID PRIMARY KEY
+├── title VARCHAR(500)              -- Titre de l'article
+├── source VARCHAR(50)              -- Source (ZeroHedge, CNBC, etc.)
+├── url TEXT                       -- URL de l'article
+├── content TEXT                    -- Contenu optionnel
+├── sentiment VARCHAR(20)           -- Sentiment optionnel
+├── created_at TIMESTAMP           -- Date de création
+└── updated_at TIMESTAMP           -- Date de mise à jour
+
+-- 📊 sentiment_analyses (Analyses de sentiment)
+├── id UUID PRIMARY KEY
+├── analysis_date DATE              -- Date de l'analyse
+├── overall_sentiment VARCHAR(20)   -- bullish/bearish/neutral
+├── score INTEGER                   -- Score -100 à +100
+├── risk_level VARCHAR(20)          -- low/medium/high
+├── confidence_score FLOAT          -- Score de confiance 0-1
+├── catalysts JSONB                 -- Array des catalystes principaux
+├── summary TEXT                    -- Résumé de l'analyse
+├── news_count INTEGER              -- Nombre d'articles analysés
+├── metadata JSONB                  -- Métadonnées additionnelles
+├── is_validated BOOLEAN DEFAULT FALSE
+└── created_at TIMESTAMP           -- Date de création
+
+-- 📡 news_sources (Configuration des sources)
+├── id UUID PRIMARY KEY
+├── name VARCHAR(100)               -- Nom de la source
+├── url VARCHAR(500)                -- URL de la source
+├── type VARCHAR(50)                -- RSS/WEB/API
+├── is_active BOOLEAN DEFAULT TRUE  -- Source activée?
+├── last_fetch TIMESTAMP            -- Dernière récupération
+├── success_rate FLOAT              -- Taux de succès
+├── error_count INTEGER DEFAULT 0   -- Compteur d'erreurs
+└── created_at TIMESTAMP
+
+-- 🔍 scraping_sessions (Sessions de collecte)
+├── id UUID PRIMARY KEY
+├── session_start TIMESTAMP         -- Début de session
+├── session_end TIMESTAMP           -- Fin de session
+├── articles_found INTEGER          -- Articles trouvés
+├── articles_saved INTEGER          -- Articles sauvegardés
+├── success BOOLEAN                 -- Succès de la session
+├── error_message TEXT              -- Message d'erreur
+└── created_at TIMESTAMP
+
+-- Tables additionnelles (optimisation)
+├── daily_news_summary              -- Résumés quotidiens
+├── latest_news                     -- Cache des dernières news
+├── recent_sentiment_analyses       -- Cache des analyses récentes
+└── source_performance              -- Stats de performance par source
 ```
+
+#### **Database Connection**
+```bash
+# PostgreSQL Connection Info
+Host: localhost
+Port: 5432
+Database: financial_analyst
+User: postgres
+Password: 9022
+
+# Connection String
+postgresql://postgres:9022@localhost:5432/financial_analyst
+```
+
+#### **Key Features**
+- ✅ **22+ articles financiers** analysés en temps réel
+- ✅ **Cache intelligent** de 2 heures (TTL configurable)
+- ✅ **Nettoyage automatique** (>30 jours pour les anciennes données)
+- ✅ **Indexes optimisés** pour les requêtes fréquentes
+- ✅ **Monitoring santé** des sources de news
+- ✅ **JSONB columns** pour données flexibles (catalysts, metadata)
+- ✅ **Historique complet** des analyses de sentiment
+- ✅ **Performance tracking** par source
+
+#### **pgAdmin 4 Quick Access**
+📄 **Documentation complète**: [doc/commandes_pg_sql.md](doc/commandes_pg_sql.md)
+
+Requête complète pour pgAdmin 4 disponible dans `/doc/commandes_pg_sql.md`
 
 ### 🔄 Processing Pipeline
 ```
