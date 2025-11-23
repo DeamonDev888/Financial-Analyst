@@ -76,10 +76,13 @@ npm run analyze
 
 ### 📰 **News Sources**
 
-- **ZeroHedge** - Alternative market sentiment & macro news
-- **CNBC** - Traditional financial news & ES Futures coverage
-- **FinancialJuice** - Real-time market headlines
+- **ZeroHedge** - Alternative market sentiment & macro news (RSS)
+- **CNBC** - Traditional financial news & ES Futures coverage (RSS)
+- **FinancialJuice** - Real-time market headlines (Simulated)
+- **Finnhub** - General Market News (API)
+- **FRED** - US Macro Economics (Yield Curve, Inflation, GDP)
 - **Smart Caching** - 2-hour TTL with automatic refresh
+- _(Removed: CME/VIX & Investing.com per user request)_
 
 ---
 
