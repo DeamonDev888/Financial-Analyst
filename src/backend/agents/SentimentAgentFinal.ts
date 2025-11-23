@@ -201,9 +201,10 @@ DATA:
 ${toonData}
 
 RULES:
-1. Analyze all headlines
-2. Return ONLY JSON
-3. No conversational text
+1. Analyze all headlines (News) AND Macro Data (FRED)
+2. Macro Data (Yield Curve, Inflation, etc.) is CRITICAL for context
+3. Return ONLY JSON
+4. No conversational text
 `;
     }
 

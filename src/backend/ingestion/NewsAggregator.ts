@@ -2,7 +2,6 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { FredClient } from './FredClient';
 import { FinnhubClient } from './FinnhubClient';
-import { CmeClient } from './CmeClient';
 
 export interface NewsItem {
     title: string;
@@ -16,12 +15,10 @@ export interface NewsItem {
 export class NewsAggregator {
     private fredClient: FredClient;
     private finnhubClient: FinnhubClient;
-    private cmeClient: CmeClient;
 
     constructor() {
         this.fredClient = new FredClient();
         this.finnhubClient = new FinnhubClient();
-        this.cmeClient = new CmeClient();
     }
 
     /**
@@ -155,14 +152,6 @@ export class NewsAggregator {
             console.error('Error fetching Finnhub news:', error);
             return [];
         }
-    }
-
-    /**
-     * Récupère les données CME / VIX
-     */
-    async fetchCmeData(): Promise<NewsItem[]> {
-        // [SUPPRIMÉ PAR L'UTILISATEUR] - FedWatch et VIX désactivés
-        return [];
     }
 
     /**
