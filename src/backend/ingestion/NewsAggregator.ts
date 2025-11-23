@@ -98,20 +98,8 @@ export class NewsAggregator {
      * Pour la démo, on retourne des données statiques réalistes.
      */
     async fetchFinancialJuice(): Promise<NewsItem[]> {
-        return [
-            {
-                title: "S&P 500 Futures extend gains as bond yields retreat",
-                source: "FinancialJuice",
-                url: "https://financialjuice.com",
-                timestamp: new Date()
-            },
-            {
-                title: "Fed's Powell: 'Inflation is moving down but slowly'",
-                source: "FinancialJuice",
-                url: "https://financialjuice.com",
-                timestamp: new Date()
-            }
-        ];
+        // Simulation désactivée - Retourne vide si pas de vraie API
+        return [];
     }
 
     /**

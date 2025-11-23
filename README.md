@@ -72,21 +72,6 @@ npm run analyze
 - **Single Analysis** - One-time sentiment analysis
 - **Continuous Monitoring** - Automated analysis every 5 minutes
 - **Database Status** - View cache status and news statistics
-- **Help & Documentation** - Built-in usage instructions
-
-### 📰 **News Sources**
-
-- **ZeroHedge** - Alternative market sentiment & macro news (RSS)
-- **CNBC** - Traditional financial news & ES Futures coverage (RSS)
-- **FinancialJuice** - Real-time market headlines (Simulated)
-- **Finnhub** - General Market News (API)
-- **FRED** - US Macro Economics (Yield Curve, Inflation, GDP)
-- **Smart Caching** - 2-hour TTL with automatic refresh
-- _(Removed: CME/VIX & Investing.com per user request)_
-
----
-
-## 📦 Installation
 
 ### 1. Clone Repository
 
